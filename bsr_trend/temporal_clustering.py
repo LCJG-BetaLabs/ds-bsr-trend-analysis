@@ -13,6 +13,12 @@ from tqdm import tqdm
 
 # COMMAND ----------
 
+# result path
+path = "/dbfs/mnt/dev/bsr_trend/clustering/clustering_result/"
+os.makedirs(path, exist_ok=True)
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC # load data
 
@@ -105,6 +111,29 @@ som.train(my_series, 50000)
 
 # COMMAND ----------
 
+winners = np.array([som.winner(x) for x in my_series])
+
+# COMMAND ----------
+
+win_map = som.win_map(my_series)
+
+cluster_avg = []
+# get cluster avg
+for x in range(som_x):
+    for y in range(som_y):
+        cluster = (x, y)
+        if cluster in win_map.keys():
+            avg = np.average(np.vstack(win_map[cluster]), axis=0)
+        cluster_number = x * som_y + y + 1
+        cluster_avg.append((avg, cluster_number))
+
+# COMMAND ----------
+
+# 
+np.save(os.path.join(path, "cluster_averages.npy"), np.array(cluster_avg, dtype=object))
+
+# COMMAND ----------
+
 # Little handy function to plot series
 def plot_som_series_averaged_center(som_x, som_y, win_map):
     fig, axs = plt.subplots(som_x,som_y,figsize=(25,25))
@@ -153,6 +182,22 @@ print(cluster_c)
 
 # COMMAND ----------
 
+import scipy
+
+# COMMAND ----------
+
+## find real centroids
+cluster_centers = np.array([vec for center in som.get_weights() 
+                            for vec in center])
+closest, distances = scipy.cluster.vq.vq(cluster_centers, 
+                                         my_series)
+
+# COMMAND ----------
+
+np.array(my_series)[closest]
+
+# COMMAND ----------
+
 # find real centroids
 cluster_centers = np.array([vec for center in som.get_weights() 
                             for vec in center])
@@ -175,8 +220,30 @@ def get_cluster_mapping_df(time_series, som, columns=["vpn", "cluster"]):
 
 # COMMAND ----------
 
-cluster_centers_vpns = get_cluster_mapping_df(cluster_centers, som, columns=["vpn", "cluster"])
-cluster_centers_vpns.head()
+cluster_centers_vpns = get_cluster_mapping_df(np.array(my_series)[closest], som, columns=["vpn", "cluster"])
+cluster_centers_vpns
+
+# COMMAND ----------
+
+som.cluster_centers
+
+# COMMAND ----------
+
+cluster_map = []
+for idx in range(len(cluster_centers)):
+    winner_node = som.winner(cluster_centers[idx])
+    print(winner_node)
+    cluster_map.append((vpns[idx], winner_node[0] * som_y + winner_node[1] + 1))
+    print()
+cluster_map = (
+    pd.DataFrame(cluster_map, columns=["vpn", "cluster"])
+    .sort_values(by="cluster")
+    .reset_index(drop=True)
+)
+
+# COMMAND ----------
+
+cluster_map
 
 # COMMAND ----------
 
@@ -185,13 +252,15 @@ cluster_mapping.head()
 
 # COMMAND ----------
 
+cluster_mapping[cluster_mapping["vpn"] == "3FR0000E0381200B0313"]
+
+# COMMAND ----------
+
 import pickle
 
 # COMMAND ----------
 
 # save result
-path = "/dbfs/mnt/dev/bsr_trend/clustering/clustering_result/"
-os.makedirs(path, exist_ok=True)
 
 cluster_centers_vpns.to_csv(os.path.join(path, "cluster_centers.csv"), index=False)
 cluster_mapping.to_csv(os.path.join(path, "cluster_mapping.csv"), index=False)
