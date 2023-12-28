@@ -1,15 +1,18 @@
 # Databricks notebook source
-import base64
-import json
-import os
+# COMMAND ----------
 
+pip install minisom
+
+# COMMAND ----------
+
+import os
+import math
+import pickle
+import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import seaborn as sns
-import statsmodels.api as sm
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_percentage_error
-from tqdm import tqdm
+from minisom import MiniSom
+
 
 # COMMAND ----------
 
@@ -45,6 +48,7 @@ real_pred_start = "2023-11-13"
 
 vpns = np.unique(df["vpn"])
 
+# fill 0 so that the length of each series is the same
 my_series = []
 for vpn in vpns:
     subdf = df[df["vpn"] == vpn].set_index("order_week")
@@ -56,7 +60,6 @@ for vpn in vpns:
         right_index=True,
     )
     buf["order_week"] = buf.index
-    # buf = one_hot_encode_month(buf, "order_week")
     buf = buf.drop(["vpn", "amt", "order_week"], axis=1)
     buf = buf.fillna(0).astype(int)
 
@@ -77,33 +80,6 @@ print(series_lengths)
 
 # COMMAND ----------
 
-pip install minisom
-
-# COMMAND ----------
-
-pip install tslearn
-
-# COMMAND ----------
-
-# Native libraries
-import os
-import math
-# Essential Libraries
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-# Preprocessing
-from sklearn.preprocessing import MinMaxScaler
-# Algorithms
-from minisom import MiniSom
-from tslearn.barycenters import dtw_barycenter_averaging
-from tslearn.clustering import TimeSeriesKMeans
-from sklearn.cluster import KMeans
-
-from sklearn.decomposition import PCA
-
-# COMMAND ----------
-
 som_x = som_y = math.ceil(math.sqrt(math.sqrt(len(my_series))))
 som = MiniSom(5, 5, len(my_series[0]), sigma=0.5, learning_rate = 0.05)
 som.random_weights_init(my_series)
@@ -112,9 +88,6 @@ som.train(my_series, 50000)
 # COMMAND ----------
 
 winners = np.array([som.winner(x) for x in my_series])
-
-# COMMAND ----------
-
 win_map = som.win_map(my_series)
 
 cluster_avg = []
@@ -129,8 +102,13 @@ for x in range(som_x):
 
 # COMMAND ----------
 
-# 
+# save cluster averages
 np.save(os.path.join(path, "cluster_averages.npy"), np.array(cluster_avg, dtype=object))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## visualize clustering result
 
 # COMMAND ----------
 
@@ -182,29 +160,6 @@ print(cluster_c)
 
 # COMMAND ----------
 
-import scipy
-
-# COMMAND ----------
-
-## find real centroids
-cluster_centers = np.array([vec for center in som.get_weights() 
-                            for vec in center])
-closest, distances = scipy.cluster.vq.vq(cluster_centers, 
-                                         my_series)
-
-# COMMAND ----------
-
-np.array(my_series)[closest]
-
-# COMMAND ----------
-
-# find real centroids
-cluster_centers = np.array([vec for center in som.get_weights() 
-                            for vec in center])
-cluster_centers
-
-# COMMAND ----------
-
 def get_cluster_mapping_df(time_series, som, columns=["vpn", "cluster"]):
     cluster_map = []
     for idx in range(len(time_series)):
@@ -220,49 +175,11 @@ def get_cluster_mapping_df(time_series, som, columns=["vpn", "cluster"]):
 
 # COMMAND ----------
 
-cluster_centers_vpns = get_cluster_mapping_df(np.array(my_series)[closest], som, columns=["vpn", "cluster"])
-cluster_centers_vpns
-
-# COMMAND ----------
-
-som.cluster_centers
-
-# COMMAND ----------
-
-cluster_map = []
-for idx in range(len(cluster_centers)):
-    winner_node = som.winner(cluster_centers[idx])
-    print(winner_node)
-    cluster_map.append((vpns[idx], winner_node[0] * som_y + winner_node[1] + 1))
-    print()
-cluster_map = (
-    pd.DataFrame(cluster_map, columns=["vpn", "cluster"])
-    .sort_values(by="cluster")
-    .reset_index(drop=True)
-)
-
-# COMMAND ----------
-
-cluster_map
-
-# COMMAND ----------
-
 cluster_mapping = get_cluster_mapping_df(my_series, som, columns=["vpn", "cluster"])
 cluster_mapping.head()
 
 # COMMAND ----------
-
-cluster_mapping[cluster_mapping["vpn"] == "3FR0000E0381200B0313"]
-
-# COMMAND ----------
-
-import pickle
-
-# COMMAND ----------
-
 # save result
-
-cluster_centers_vpns.to_csv(os.path.join(path, "cluster_centers.csv"), index=False)
 cluster_mapping.to_csv(os.path.join(path, "cluster_mapping.csv"), index=False)
 
 # save model
