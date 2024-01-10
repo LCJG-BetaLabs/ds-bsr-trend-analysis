@@ -1,33 +1,8 @@
-# Databricks notebook source
-# add new exog variables
-# holiday tag
-# sales period
-# traffic data
-# price
+from databricks.sdk.runtime import spark
+import pandas as pd
+import holidays
 
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC holiday tag
-
-# COMMAND ----------
-
-import holidays 
-
-def tag_holidays(date):
-    holiday_dates = list(holidays.HK(years=date.year).keys())
-    if date in holiday_dates:
-        return 1
-    else:
-        return 0
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC traffic data (aggregate to weekly)
-
-# COMMAND ----------
-
+# traffic data (aggregate to weekly)
 # lc_prd.dashboard_core_kpi_gold.traffic_fact from workflow
 # https://adb-2705545515885439.19.azuredatabricks.net/?o=2705545515885439#job/219640479773386/run/742429623685846
 # remove dependency when in staging
@@ -44,45 +19,30 @@ weekly_traffic = spark.sql(
         week_start_date
     """
 )
-
-# COMMAND ----------
-
 weekly_traffic.write.parquet("/mnt/dev/bsr_trend/exog_data/weekly_traffic.parquet")
 
-# COMMAND ----------
+# VPN and style code mapping
+mapping_table = pd.read_csv("/dbfs/mnt/dev/bsr_trend/vpn_style_map.csv")
 
-# MAGIC %md
-# MAGIC sales period
 
-# COMMAND ----------
-
-# hardcode (dec and jun are sales period)
-from datetime import datetime
-
-def sales_period(d):
-    if d.month in [6, 12]:
+def tag_holidays(date):
+    """holiday tag"""
+    holiday_dates = list(holidays.HK(years=date.year).keys())
+    if date in holiday_dates:
         return 1
     else:
         return 0
 
-# COMMAND ----------
 
-# MAGIC %md
-# MAGIC price
-
-# COMMAND ----------
-
-# question: we are able to get prices from the past, but not the future (assume to be same as the latest price?)
-# use load_date as the day of prices
-
-# COMMAND ----------
-
-import pandas as pd 
-
-mapping_table = pd.read_csv("/dbfs/mnt/dev/bsr_trend/vpn_style_map.csv")
+def sales_period(date):
+    """hardcode (dec and jun are sales period)"""
+    if date.month in [6, 12]:
+        return 1
+    else:
+        return 0
 
 
-def get_style_code(vpn, mapping_table):
+def get_style_code(vpn):
     if not mapping_table[mapping_table["vpn"] == vpn].empty:
         return mapping_table.loc[mapping_table["vpn"] == vpn, "style"].iloc[0]
     else:
@@ -90,6 +50,10 @@ def get_style_code(vpn, mapping_table):
 
 
 def get_weekly_prices(vpn, start_date, end_date):
+    """
+    question: we are able to get prices from the past, but not the future (assume to be same as the latest price?)
+    use load_date as the day of prices
+    """
     style = get_style_code(vpn)
     prices = spark.sql(
         f"""
@@ -108,6 +72,16 @@ def get_weekly_prices(vpn, start_date, end_date):
     ).toPandas()
     return prices
 
-# COMMAND ----------
 
-
+def one_hot_encode_month(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
+    df = df.copy()
+    df["month"] = df[date_col].apply(lambda x: x.month)
+    month_dummies = pd.get_dummies(df['month'], prefix="month", prefix_sep="-")
+    for i in range(1, 13):
+        col = f"month-{i}"
+        if col not in month_dummies.columns:
+            month_dummies[col] = 0
+    month_dummies = month_dummies[[f"month-{i}" for i in range(1, 13)]]
+    df = df.drop(columns=[c for c in month_dummies.columns if c in df.columns])
+    df = pd.concat([df, month_dummies], axis=1).drop(['month'], axis=1)
+    return df
