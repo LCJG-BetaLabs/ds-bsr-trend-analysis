@@ -77,14 +77,17 @@ def sales_period(d):
 
 # COMMAND ----------
 
-# need vpn to atg_code mapping
+import pandas as pd 
 
-# COMMAND ----------
+mapping_table = pd.read_csv("/dbfs/mnt/dev/bsr_trend/vpn_style_map.csv")
 
-# input atg_code, start_date, end_date
-# output 
+
 def get_style_code(vpn, mapping_table):
-    return mapping_table[mapping_table["vpn"] == vpn, "style"].iloc[0]
+    if not mapping_table[mapping_table["vpn"] == vpn].empty:
+        return mapping_table.loc[mapping_table["vpn"] == vpn, "style"].iloc[0]
+    else:
+        return None
+
 
 def get_weekly_prices(vpn, start_date, end_date):
     style = get_style_code(vpn)
