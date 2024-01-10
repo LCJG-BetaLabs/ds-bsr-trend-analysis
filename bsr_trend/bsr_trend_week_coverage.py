@@ -122,6 +122,17 @@
 # COMMAND ----------
 
 # MAGIC %sql
+# MAGIC CREATE OR REPLACE TEMPORARY VIEW BSRVPNStyleMapping AS
+# MAGIC SELECT
+# MAGIC   DISTINCT mp.vpn,
+# MAGIC   s.style
+# MAGIC FROM BSRStyleWeeklySales s
+# MAGIC LEFT JOIN ItemVPNMapping mp ON (s.style = mp.item)
+# MAGIC WHERE mp.vpn IS NOT NULL;
+
+# COMMAND ----------
+
+# MAGIC %sql
 # MAGIC CREATE OR REPLACE TEMPORARY VIEW BSRVPNStockLevel AS
 # MAGIC SELECT
 # MAGIC   mp.vpn,
@@ -219,6 +230,7 @@ import pandas as pd
 sales = spark.table("BSRVPNWeeklySales").toPandas()
 stock_level = spark.table("BSRVPNStockLevel").toPandas()
 po_qty = spark.table("BSRVPNPO").toPandas()
+vpn_style_map = spark.table("BSRVPNStyleMapping").toPandas()
 
 # COMMAND ----------
 
@@ -323,6 +335,8 @@ import os
 os.makedirs("/dbfs/mnt/dev/bsr_trend", exist_ok=True)
 sales.to_csv("/dbfs/mnt/dev/bsr_trend/sales.csv", index=False)
 coverage.to_csv("/dbfs/mnt/dev/bsr_trend/week_coverage.csv", index=False)
+vpn_style_map.to_csv("/dbfs/mnt/dev/bsr_trend/vpn_style_map.csv", index=False)
 
 # COMMAND ----------
+
 
