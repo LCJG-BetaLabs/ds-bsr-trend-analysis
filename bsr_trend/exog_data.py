@@ -5,7 +5,7 @@ import holidays
 # traffic data (aggregate to weekly)
 # lc_prd.dashboard_core_kpi_gold.traffic_fact from workflow
 # https://adb-2705545515885439.19.azuredatabricks.net/?o=2705545515885439#job/219640479773386/run/742429623685846
-# remove dependency when in staging
+# remove dependency when in production
 weekly_traffic = spark.sql(
     """
     SELECT
@@ -19,7 +19,6 @@ weekly_traffic = spark.sql(
         week_start_date
     """
 )
-weekly_traffic.write.parquet("/mnt/dev/bsr_trend/exog_data/weekly_traffic.parquet")
 
 # VPN and style code mapping
 mapping_table = pd.read_csv("/dbfs/mnt/dev/bsr_trend/vpn_style_map.csv")
@@ -58,16 +57,16 @@ def get_weekly_prices(vpn, start_date, end_date):
     prices = spark.sql(
         f"""
         SELECT 
-            AVG(price), 
-            date_trunc('week', load_date) AS week_start_date,
+            AVG(price) AS avg_price, 
+            DATE(date_trunc('week', to_date(load_date, "yyyyMMdd"))) AS order_week
         FROM lc_prd.api_product_feed_silver.lc_product_feed
         WHERE 
-            lcStyleCode = '{style}'
+            lcStyleCode = {style}
             AND region = "hk"
             AND load_date >= {start_date}
             AND load_date <= {end_date}
-        GROUP BY
-            date_trunc('week', load_date)
+        GROUP BY 
+            DATE(date_trunc('week', to_date(load_date, "yyyyMMdd")))
         """
     ).toPandas()
     return prices
