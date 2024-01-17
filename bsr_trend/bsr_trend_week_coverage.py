@@ -231,6 +231,7 @@ sales = spark.table("BSRVPNWeeklySales").toPandas()
 stock_level = spark.table("BSRVPNStockLevel").toPandas()
 po_qty = spark.table("BSRVPNPO").toPandas()
 vpn_style_map = spark.table("BSRVPNStyleMapping").toPandas()
+vpn_info = spark.table("VPNInfoDetail").toPandas()
 
 # COMMAND ----------
 
@@ -336,6 +337,7 @@ os.makedirs("/dbfs/mnt/dev/bsr_trend", exist_ok=True)
 sales.to_csv("/dbfs/mnt/dev/bsr_trend/sales.csv", index=False)
 coverage.to_csv("/dbfs/mnt/dev/bsr_trend/week_coverage.csv", index=False)
 vpn_style_map.to_csv("/dbfs/mnt/dev/bsr_trend/vpn_style_map.csv", index=False)
+vpn_info.to_csv("/dbfs/mnt/dev/bsr_trend/vpn_info.csv", index=False)
 
 # COMMAND ----------
 
