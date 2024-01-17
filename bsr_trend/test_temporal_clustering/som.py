@@ -1,6 +1,4 @@
 # Databricks notebook source
-# COMMAND ----------
-
 # MAGIC %pip install minisom
 
 # COMMAND ----------
@@ -179,6 +177,7 @@ cluster_mapping = get_cluster_mapping_df(my_series, som, columns=["vpn", "cluste
 cluster_mapping.head()
 
 # COMMAND ----------
+
 # save result
 cluster_mapping.to_csv(os.path.join(path, "cluster_mapping.csv"), index=False)
 
