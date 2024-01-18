@@ -58,33 +58,6 @@ pred_buf = pred_buf.set_index("order_week")
 
 # COMMAND ----------
 
-# # dynamic start date: based on first purchase of the vpn
-# vpns = np.unique(sales["vpn"])
-
-# time_series = []
-
-# for vpn in vpns:
-#     subdf = sales[sales["vpn"] == vpn].set_index("order_week")
-#     buf = pd.merge(
-#         pd.DataFrame(index=date_range),
-#         subdf,
-#         how="left",
-#         left_index=True,
-#         right_index=True,
-#     )
-#     buf["order_week"] = buf.index
-#     tr_start = buf[buf.vpn.notna()]["order_week"].min().to_pydatetime()
-
-#     buf = buf.drop(["vpn", "amt", "order_week"], axis=1)
-#     buf = buf.fillna(0).astype(int)
-
-#     # take training period
-#     tra = buf["qty"][tr_start:tr_end].dropna()
-#     tra.sort_index(inplace=True)
-#     time_series.append(list(tra))
-
-# COMMAND ----------
-
 vpns = np.unique(sales["vpn"])
 
 # fill 0 so that the length of each series is the same
@@ -132,6 +105,8 @@ som_x = som_y = math.ceil(math.sqrt(math.sqrt(len(time_series))))
 
 # COMMAND ----------
 
+som_x = som_y = math.ceil(math.sqrt(math.sqrt(len(time_series))))
+
 plot_count = math.ceil(math.sqrt(cluster_count))
 
 fig, axs = plt.subplots(plot_count, plot_count, figsize=(25, 25))
@@ -169,7 +144,7 @@ plt.show()
 
 # COMMAND ----------
 
-result = pd.DataFrame(zip(vpns, labels), columns=["vpns", "cluster"])
+result = pd.DataFrame(zip(vpns, labels), columns=["vpn", "cluster"])
 result
 
 # COMMAND ----------
@@ -180,6 +155,89 @@ result.to_csv(os.path.join(path, "cluster_mapping.csv"), index=False)
 # save model
 with open(os.path.join(path, "kmean_dtw_model.pkl"), "wb") as f:
     pickle.dump(km, f)
+
+# COMMAND ----------
+
+# further cluster the big clusters (0, 5, 13, 19)
+big_cluster = [0, 5, 13, 19]
+
+vpns_list = []
+models_list = []
+labels_list = []
+
+for c in big_cluster:
+    tmp = result[result["cluster"] == c]
+    _vpns = np.unique(tmp["vpn"])
+
+    time_series = []
+    for vpn in _vpns:
+        subdf = sales[sales["vpn"] == vpn].set_index("order_week")
+        buf = pd.merge(
+            pd.DataFrame(index=date_range),
+            subdf,
+            how="left",
+            left_index=True,
+            right_index=True,
+        )
+        buf["order_week"] = buf.index
+        buf = buf.drop(["vpn", "amt", "order_week"], axis=1)
+        buf = buf.fillna(0).astype(int)
+
+        # take training period
+        tra = buf['qty'][tr_start:tr_end].dropna()
+        tra.sort_index(inplace=True)
+        time_series.append(list(tra))
+
+    cluster_count = math.ceil(math.sqrt(len(time_series))) 
+    print(cluster_count)
+    # A good rule of thumb is choosing k as the square root of the number of points in the training data set in kNN
+
+    km = TimeSeriesKMeans(n_clusters=cluster_count, metric="dtw", random_state=0)
+    labels = km.fit_predict(time_series)
+
+    som_x = som_y = math.ceil(math.sqrt(math.sqrt(len(time_series))))
+
+    plot_count = math.ceil(math.sqrt(cluster_count))
+    
+    fig, axs = plt.subplots(plot_count, plot_count, figsize=(25, 25))
+    fig.suptitle("Clusters")
+    row_i = 0
+    column_j = 0
+    # For each label there is,
+    # plots every series with that label
+    for label in set(labels):
+        cluster = []
+        for i in range(len(labels)):
+            if labels[i] == label:
+                axs[row_i, column_j].plot(time_series[i], c="gray", alpha=0.4)
+                cluster.append(time_series[i])
+        if len(cluster) > 0:
+            axs[row_i, column_j].plot(np.average(np.vstack(cluster), axis=0), c="red")
+        axs[row_i, column_j].set_title("Cluster " + str(row_i * som_y + column_j))
+        column_j += 1
+        if column_j % plot_count == 0:
+            row_i += 1
+            column_j = 0
+
+    display(plt.show())
+    vpns_list.append(_vpns)
+    models_list.append(km)
+    labels_list.append(labels)
+
+# COMMAND ----------
+
+for _v, l, num in zip(vpns_list, labels_list, big_cluster):
+    df = pd.DataFrame(zip(_v, l), columns=["vpn", "cluster"])
+    df.to_csv(os.path.join(path, f"subcluster_mapping_cluster_{num}.csv"), index=False)
+
+# COMMAND ----------
+
+for l in labels_list:
+    print(np.unique(l, return_counts=True))
+
+# COMMAND ----------
+
+df
 
 # COMMAND ----------
 
