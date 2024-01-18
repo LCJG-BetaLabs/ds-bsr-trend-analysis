@@ -44,8 +44,8 @@ def choose_d(tra, d=0, alpha=0.05, seasonal=False, period=52):
 
 
 def choose_p_and_q(tra, d):
-    p_values = range(1, 10)
-    q_values = range(1, 10)
+    p_values = range(1, 6)
+    q_values = range(1, 6)
     best_aic = float('inf')
     best_p = 0
     best_q = 0
@@ -74,10 +74,8 @@ def choose_p_and_q(tra, d):
     return best_p, best_q
 
 
-# TODO: early stopping for grid search
-
 def choose_seasonal_p_and_q(tra, D, s=52, order=(1, 0, 1)):
-    p_values, q_values = range(1, 10), range(1, 10)
+    p_values, q_values = range(1, 6), range(1, 6)
     best_aic = float('inf')
     best_p, best_q = 0, 0
 
