@@ -15,7 +15,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 from tqdm import tqdm
 import statsmodels.api as sm
 
-from bsr_trend.model_utils import choose_d, choose_p_and_q, choose_seasonal_p_and_q, extract_season_component
+from bsr_trend.model_utils import choose_best_hyperparameter
 from bsr_trend.logger import get_logger
 from bsr_trend.exog_data import one_hot_encode_month
 
@@ -109,20 +109,7 @@ exog_test = buf.drop(["qty"], axis=1)[te_start:te_end].dropna()
 # COMMAND ----------
 
 # choose best hyperparameter
-best_d = choose_d(tra)
-best_D = choose_d(tra, seasonal=True, period=52)
-best_p, best_q = choose_p_and_q(tra, best_d)
-
-season_component = extract_season_component(tra, period=52)
-# Assuming a seasonal pattern repeating every 52 weeks (annual seasonality)
-best_P, best_Q = choose_seasonal_p_and_q(tra, best_D, s=52, order=(best_p, best_d, best_q))
-
-# COMMAND ----------
-
-logger.info(f"Differencing parameter: d = {best_d}")
-logger.info(f"Seasonal differencing parameter: D = {best_D}")
-logger.info(f"AR order and MA order: p = {best_p}, q = {best_q}")
-logger.info(f"Seasonal AR order and MA order: p = {best_P}, q = {best_Q}")
+best_p, best_d, best_q, best_P, best_D, best_Q = choose_best_hyperparameter(tra)
 
 # COMMAND ----------
 
