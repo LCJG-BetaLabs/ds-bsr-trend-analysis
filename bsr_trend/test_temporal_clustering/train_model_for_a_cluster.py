@@ -1,5 +1,4 @@
 # Databricks notebook source
-# import
 import base64
 import json
 import os
@@ -8,12 +7,13 @@ import datetime
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_percentage_error
+from tqdm import tqdm
+from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 import statsmodels.api as sm
 
 from bsr_trend.model_utils import choose_d, choose_p_and_q, choose_seasonal_p_and_q, extract_season_component
 from bsr_trend.logger import get_logger
-from bsr_trend.exog_data import weekly_traffic, tag_holidays, sales_period, get_weekly_prices
+from bsr_trend.exog_data import weekly_traffic, tag_holidays, sales_period
 
 # Suppress UserWarning from statsmodels
 warnings.simplefilter("ignore")
@@ -149,19 +149,12 @@ def choose_best_hyperparameter(tra):
 # COMMAND ----------
 
 best_p, best_d, best_q, best_P, best_D, best_Q = choose_best_hyperparameter(tra_avg)
-
-# COMMAND ----------
-
-best_p, best_d, best_q, best_P, best_D, best_Q = 2, 1, 4, 1, 0 ,1
+# found best_p, best_d, best_q, best_P, best_D, best_Q = 2, 1, 4, 1, 0 ,1
 
 # COMMAND ----------
 
 tra = tra_avg
 tes = tes_avg
-
-# COMMAND ----------
-
-pred_buf
 
 # COMMAND ----------
 
@@ -215,32 +208,9 @@ def prepare_training_data(vpn, pred_buf):
     exog = buf[["holiday_count", "is_sales_period", "weekly_traffic"]]
     exog_train = exog[tr_start:tr_end].dropna()
     exog_test = exog[te_start:te_end].dropna()
-
-    # exog_pred
-    # pred_buf['order_week'] = pd.to_datetime(pred_buf.index)
-
-    # pred_buf["year"] = pred_buf["order_week"].dt.year
-    # pred_buf["last_year"] = pred_buf["year"] - 1
-    # pred_buf['week_number'] = pred_buf['order_week'].dt.week
-
-    # weekly_traffic["year"] = weekly_traffic["week_start_date"].dt.year
-    # weekly_traffic["week_number"] = weekly_traffic["week_start_date"].dt.week
-
-    # pred_buf = pred_buf.merge(weekly_traffic[["weekly_traffic", "year", "week_number"]], left_on=["last_year", "week_number"], right_on=["year", "week_number"])[["order_week", "weekly_traffic"]]
-
-    # # holiday
-    # pred_buf['holiday_count'] = pred_buf.groupby(pd.Grouper(key='order_week', freq='W-MON'))['order_week'].transform(lambda x: sum(x.map(tag_holidays)))
-
-    # # sales
-    # pred_buf["is_sales_period"] = pred_buf["order_week"].apply(lambda d: sales_period(d))
-
     exog_pred = pred_buf.set_index("order_week")[["holiday_count", "is_sales_period", "weekly_traffic"]].dropna()
 
     return tra, tes, exog_train, exog_test, exog_pred
-
-# COMMAND ----------
-
-from tqdm import tqdm
 
 # COMMAND ----------
 
@@ -367,11 +337,6 @@ sales_velocities = pd.DataFrame(list(sales_velocities.items()))
 sales_velocities.columns = ["vpn", "weekly_sales"]
 sales_velocities["forecast"] = sales_velocities["weekly_sales"] * len(pd.date_range(te_start, te_end, freq="W-MON"))
 
-
-# COMMAND ----------
-
-sales_velocities
-
 # COMMAND ----------
 
 pred_sales_velocities = {}
@@ -396,14 +361,9 @@ pred_sales_velocities.columns = ["vpn", "gt"]
 
 # COMMAND ----------
 
-pred_sales_velocities
-
-# COMMAND ----------
-
 vel_pred = pd.merge(sales_velocities, pred_sales_velocities, how="inner", on="vpn")
 vel_pred = vel_pred.drop(columns="weekly_sales")
 vel_pred["mape (%)"] = abs(vel_pred["forecast"] / (vel_pred["gt"]+0.01) - 1) * 100
-vel_pred
 
 # COMMAND ----------
 
