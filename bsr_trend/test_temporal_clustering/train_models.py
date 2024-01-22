@@ -11,12 +11,13 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_percentage_error
+from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 from tqdm import tqdm
 import statsmodels.api as sm
 
 from bsr_trend.model_utils import choose_d, choose_p_and_q, choose_seasonal_p_and_q, extract_season_component
 from bsr_trend.logger import get_logger
+from bsr_trend.exog_data import one_hot_encode_month
 
 # Suppress UserWarning from statsmodels
 warnings.simplefilter("ignore")
@@ -46,22 +47,6 @@ real_pred_start = "2023-11-13"
 
 # MAGIC %md
 # MAGIC model for each cluster
-
-# COMMAND ----------
-
-
-def one_hot_encode_month(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
-    df = df.copy()
-    df["month"] = df[date_col].apply(lambda x: x.month)
-    month_dummies = pd.get_dummies(df['month'], prefix="month", prefix_sep="-")
-    for i in range(1, 13):
-        col = f"month-{i}"
-        if col not in month_dummies.columns:
-            month_dummies[col] = 0
-    month_dummies = month_dummies[[f"month-{i}" for i in range(1, 13)]]
-    df = df.drop(columns=[c for c in month_dummies.columns if c in df.columns])
-    df = pd.concat([df, month_dummies], axis=1).drop(['month'], axis=1)
-    return df
 
 # COMMAND ----------
 

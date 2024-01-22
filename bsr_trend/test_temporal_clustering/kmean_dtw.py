@@ -11,12 +11,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-from sklearn.preprocessing import MinMaxScaler
-
-from tslearn.barycenters import dtw_barycenter_averaging
 from tslearn.clustering import TimeSeriesKMeans
-
-from sklearn.decomposition import PCA
 
 # COMMAND ----------
 

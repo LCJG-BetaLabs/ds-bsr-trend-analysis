@@ -56,7 +56,6 @@ def choose_p_and_q(tra, d):
     # Perform grid search
     for param in itertools.product(p_values, q_values):
         p, q = param
-        # try:
         model = sm.tsa.ARIMA(tra, order=(p, d, q))
         results = model.fit()
         aic = results.aic
@@ -68,8 +67,6 @@ def choose_p_and_q(tra, d):
             best_q = q
         logger.info(f"Current AIC: {aic}, p: {p}, q: {q}")
         logger.info(f"Best AIC: {best_aic}, p: {best_p}, q: {best_q}")
-        # except:
-        #     continue
 
     return best_p, best_q
 
@@ -86,7 +83,6 @@ def choose_seasonal_p_and_q(tra, D, s=52, order=(1, 0, 1)):
     # Perform grid search
     for param in itertools.product(p_values, q_values):
         p, q = param
-        # try:
         model = statsmodels.tsa.statespace.sarimax.SARIMAX(tra, order=order, seasonal_order=(p, D, q, s), exog=None)
         results = model.fit()
         aic = results.aic
@@ -98,7 +94,5 @@ def choose_seasonal_p_and_q(tra, D, s=52, order=(1, 0, 1)):
             best_q = q
         logger.info(f"Current AIC: {aic}, P: {p}, Q: {q}")
         logger.info(f"Best AIC: {best_aic}, P: {best_p}, Q: {best_q}")
-        # except:
-        #     continue
 
     return best_p, best_q

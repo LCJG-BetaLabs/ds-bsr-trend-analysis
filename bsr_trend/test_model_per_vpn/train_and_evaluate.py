@@ -13,7 +13,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_percentage_error
+from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 import statsmodels.api as sm
 
 from bsr_trend.model_utils import choose_d, choose_p_and_q, choose_seasonal_p_and_q, extract_season_component
@@ -51,6 +51,7 @@ pred_buf = pred_buf.set_index("order_week")
 
 exog_pred = pred_buf
 
+
 # COMMAND ----------
 
 def prepare_training_data(vpn):
@@ -75,6 +76,7 @@ def prepare_training_data(vpn):
 
     return tra, tes, exog_train, exog_test
 
+
 # COMMAND ----------
 
 def choose_best_hyperparameter(tra):
@@ -92,6 +94,7 @@ def choose_best_hyperparameter(tra):
     logger.info(f"Seasonal AR order and MA order: p = {best_P}, q = {best_Q}")
 
     return best_p, best_d, best_q, best_P, best_D, best_Q
+
 
 # COMMAND ----------
 
@@ -142,7 +145,6 @@ def train(vpn, best_p, best_d, best_q, best_P, best_D, best_Q):
     encoded_vpn = base64.b64encode(vpn.encode("utf-8")).decode()
     folder = f"/dbfs/mnt/dev/bsr_trend/sarimax_forecasting/{encoded_vpn}"
     os.makedirs(folder, exist_ok=True)
-
 
     buf.to_csv(f"{folder}/dataset.csv")
     tra.to_csv(f"{folder}/dataset_train.csv")
@@ -199,7 +201,7 @@ def get_sales_velocities(vpn):
 
     pred_sales_velocities = pd.DataFrame(list(pred_sales_velocities.items()))
     pred_sales_velocities.columns = ["vpn", "gt"]
-    
+
     vel_pred = pd.merge(sales_velocities, pred_sales_velocities, how="inner", on="vpn")
     vel_pred = vel_pred.drop(columns="weekly_sales")
     vel_pred["mape (%)"] = abs(vel_pred["forecast"] / (vel_pred["gt"] + 0.01) - 1) * 100
@@ -240,5 +242,3 @@ for vpn in random_vpns:
     print(get_mape(vpn))
 
 # COMMAND ----------
-
-

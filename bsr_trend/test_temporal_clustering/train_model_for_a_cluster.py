@@ -13,13 +13,13 @@ import statsmodels.api as sm
 
 from bsr_trend.model_utils import choose_d, choose_p_and_q, choose_seasonal_p_and_q, extract_season_component
 from bsr_trend.logger import get_logger
-from bsr_trend.exog_data import weekly_traffic, tag_holidays, sales_period
+from bsr_trend.exog_data import get_weekly_traffic, tag_holidays, sales_period
 
 # Suppress UserWarning from statsmodels
 warnings.simplefilter("ignore")
 
 logger = get_logger()
-weekly_traffic = weekly_traffic.toPandas()
+weekly_traffic = get_weekly_traffic().toPandas()
 
 # COMMAND ----------
 
