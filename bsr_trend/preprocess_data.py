@@ -33,6 +33,7 @@
 # MAGIC   WHERE
 # MAGIC     TO_DATE(order_date, "yyyyMMdd") >= "2020-01-01"
 # MAGIC     AND loc_code IN ("148", "168", "188", "210", "228")
+# MAGIC     AND dtl_qty > 0 -- exclude return product
 # MAGIC )
 # MAGIC SELECT
 # MAGIC   style,
