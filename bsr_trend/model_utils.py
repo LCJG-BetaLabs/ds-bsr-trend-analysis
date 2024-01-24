@@ -83,7 +83,7 @@ def choose_seasonal_p_and_q(tra, D, s=52, order=(1, 0, 1)):
     # Perform grid search
     for param in itertools.product(p_values, q_values):
         p, q = param
-        model = statsmodels.tsa.statespace.sarimax.SARIMAX(tra, order=order, seasonal_order=(p, D, q, s), exog=None)
+        model = statsmodels.tsa.statespace.sarimax.SARIMAX(tra, order=order, seasonal_order=(p, D, q, s), exog=None, enforce_stationarity=False)
         results = model.fit()
         aic = results.aic
 
@@ -103,7 +103,6 @@ def choose_best_hyperparameter(tra):
     best_d = choose_d(tra)
     best_D = choose_d(tra, seasonal=True, period=52)
     best_p, best_q = choose_p_and_q(tra, best_d)
-
     season_component = extract_season_component(tra, period=52)
     # Assuming a seasonal pattern repeating every 52 weeks (annual seasonality)
     best_P, best_Q = choose_seasonal_p_and_q(season_component, best_D, s=52, order=(best_p, best_d, best_q))
