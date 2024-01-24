@@ -44,8 +44,8 @@ def choose_d(tra, d=0, alpha=0.05, seasonal=False, period=52):
 
 
 def choose_p_and_q(tra, d):
-    p_values = range(1, 10)
-    q_values = range(1, 10)
+    p_values = range(1, 6)
+    q_values = range(1, 6)
     best_aic = float('inf')
     best_p = 0
     best_q = 0
@@ -56,7 +56,6 @@ def choose_p_and_q(tra, d):
     # Perform grid search
     for param in itertools.product(p_values, q_values):
         p, q = param
-        # try:
         model = sm.tsa.ARIMA(tra, order=(p, d, q))
         results = model.fit()
         aic = results.aic
@@ -68,16 +67,12 @@ def choose_p_and_q(tra, d):
             best_q = q
         logger.info(f"Current AIC: {aic}, p: {p}, q: {q}")
         logger.info(f"Best AIC: {best_aic}, p: {best_p}, q: {best_q}")
-        # except:
-        #     continue
 
     return best_p, best_q
 
 
-# TODO: early stopping for grid search
-
 def choose_seasonal_p_and_q(tra, D, s=52, order=(1, 0, 1)):
-    p_values, q_values = range(1, 10), range(1, 10)
+    p_values, q_values = range(1, 6), range(1, 6)
     best_aic = float('inf')
     best_p, best_q = 0, 0
 
@@ -88,8 +83,7 @@ def choose_seasonal_p_and_q(tra, D, s=52, order=(1, 0, 1)):
     # Perform grid search
     for param in itertools.product(p_values, q_values):
         p, q = param
-        # try:
-        model = statsmodels.tsa.statespace.sarimax.SARIMAX(tra, order=order, seasonal_order=(p, D, q, s), exog=None)
+        model = statsmodels.tsa.statespace.sarimax.SARIMAX(tra, order=order, seasonal_order=(p, D, q, s), exog=None, enforce_stationarity=False)
         results = model.fit()
         aic = results.aic
 
@@ -100,7 +94,21 @@ def choose_seasonal_p_and_q(tra, D, s=52, order=(1, 0, 1)):
             best_q = q
         logger.info(f"Current AIC: {aic}, P: {p}, Q: {q}")
         logger.info(f"Best AIC: {best_aic}, P: {best_p}, Q: {best_q}")
-        # except:
-        #     continue
 
     return best_p, best_q
+
+
+def choose_best_hyperparameter(tra):
+    # choose best hyperparameter
+    best_d = choose_d(tra)
+    best_D = choose_d(tra, seasonal=True, period=52)
+    best_p, best_q = choose_p_and_q(tra, best_d)
+    season_component = extract_season_component(tra, period=52)
+    # Assuming a seasonal pattern repeating every 52 weeks (annual seasonality)
+    best_P, best_Q = choose_seasonal_p_and_q(season_component, best_D, s=52, order=(best_p, best_d, best_q))
+    logger.info(f"Differencing parameter: d = {best_d}")
+    logger.info(f"Seasonal differencing parameter: D = {best_D}")
+    logger.info(f"AR order and MA order: p = {best_p}, q = {best_q}")
+    logger.info(f"Seasonal AR order and MA order: p = {best_P}, q = {best_Q}")
+
+    return best_p, best_d, best_q, best_P, best_D, best_Q

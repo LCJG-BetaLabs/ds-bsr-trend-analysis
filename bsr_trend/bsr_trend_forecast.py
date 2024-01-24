@@ -11,6 +11,8 @@ import statsmodels.api as sm
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_percentage_error
 from tqdm import tqdm
 
+from bsr_trend.exog_data import one_hot_encode_month
+
 
 # COMMAND ----------
 
@@ -22,21 +24,6 @@ df["vpn"].nunique()
 
 start, end = df["order_week"].min(), df["order_week"].max()
 date_range = pd.date_range(start, end, freq="W-MON")
-
-# COMMAND ----------
-
-def one_hot_encode_month(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
-    df = df.copy()
-    df["month"] = df[date_col].apply(lambda x: x.month)
-    month_dummies = pd.get_dummies(df['month'], prefix="month", prefix_sep="-")
-    for i in range(1, 13):
-        col = f"month-{i}"
-        if col not in month_dummies.columns:
-            month_dummies[col] = 0
-    month_dummies = month_dummies[[f"month-{i}" for i in range(1, 13)]]
-    df = df.drop(columns=[c for c in month_dummies.columns if c in df.columns])
-    df = pd.concat([df, month_dummies], axis=1).drop(['month'],axis=1)
-    return df
 
 # COMMAND ----------
 

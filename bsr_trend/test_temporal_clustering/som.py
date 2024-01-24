@@ -1,7 +1,5 @@
 # Databricks notebook source
-# COMMAND ----------
-
-pip install minisom
+# MAGIC %pip install minisom
 
 # COMMAND ----------
 
@@ -81,7 +79,7 @@ print(series_lengths)
 # COMMAND ----------
 
 som_x = som_y = math.ceil(math.sqrt(math.sqrt(len(my_series))))
-som = MiniSom(5, 5, len(my_series[0]), sigma=0.5, learning_rate = 0.05)
+som = MiniSom(5, 5, len(my_series[0]), sigma=0.5, learning_rate=0.05, random_seed=1)
 som.random_weights_init(my_series)
 som.train(my_series, 50000)
 
@@ -179,6 +177,7 @@ cluster_mapping = get_cluster_mapping_df(my_series, som, columns=["vpn", "cluste
 cluster_mapping.head()
 
 # COMMAND ----------
+
 # save result
 cluster_mapping.to_csv(os.path.join(path, "cluster_mapping.csv"), index=False)
 

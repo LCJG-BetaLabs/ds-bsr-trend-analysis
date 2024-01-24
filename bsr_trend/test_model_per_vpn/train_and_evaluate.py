@@ -13,34 +13,17 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_percentage_error
-from tqdm import tqdm
+from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 import statsmodels.api as sm
 
-from bsr_trend.model_utils import choose_d, choose_p_and_q, choose_seasonal_p_and_q, extract_season_component
+from bsr_trend.model_utils import choose_best_hyperparameter
 from bsr_trend.logger import get_logger
+from bsr_trend.exog_data import one_hot_encode_month
 
 # Suppress UserWarning from statsmodels
 warnings.simplefilter("ignore")
 
 logger = get_logger()
-
-# COMMAND ----------
-
-
-def one_hot_encode_month(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
-    df = df.copy()
-    df["month"] = df[date_col].apply(lambda x: x.month)
-    month_dummies = pd.get_dummies(df['month'], prefix="month", prefix_sep="-")
-    for i in range(1, 13):
-        col = f"month-{i}"
-        if col not in month_dummies.columns:
-            month_dummies[col] = 0
-    month_dummies = month_dummies[[f"month-{i}" for i in range(1, 13)]]
-    df = df.drop(columns=[c for c in month_dummies.columns if c in df.columns])
-    df = pd.concat([df, month_dummies], axis=1).drop(['month'], axis=1)
-    return df
-    
 
 # COMMAND ----------
 
@@ -68,6 +51,7 @@ pred_buf = pred_buf.set_index("order_week")
 
 exog_pred = pred_buf
 
+
 # COMMAND ----------
 
 def prepare_training_data(vpn):
@@ -92,24 +76,6 @@ def prepare_training_data(vpn):
 
     return tra, tes, exog_train, exog_test
 
-# COMMAND ----------
-
-def choose_best_hyperparameter(tra):
-    # choose best hyperparameter
-    best_d = choose_d(tra)
-    best_D = choose_d(tra, seasonal=True, period=52)
-    best_p, best_q = choose_p_and_q(tra, best_d)
-
-    season_component = extract_season_component(tra, period=52)
-    # Assuming a seasonal pattern repeating every 52 weeks (annual seasonality)
-    # best_P, best_Q = choose_seasonal_p_and_q(tra, best_D, s=52, order=(best_p, best_d, best_q))
-    best_P, best_Q = 1, 1
-    logger.info(f"Differencing parameter: d = {best_d}")
-    logger.info(f"Seasonal differencing parameter: D = {best_D}")
-    logger.info(f"AR order and MA order: p = {best_p}, q = {best_q}")
-    logger.info(f"Seasonal AR order and MA order: p = {best_P}, q = {best_Q}")
-
-    return best_p, best_d, best_q, best_P, best_D, best_Q
 
 # COMMAND ----------
 
@@ -138,8 +104,6 @@ def train(vpn, best_p, best_d, best_q, best_P, best_D, best_Q):
     # train model
     model = sm.tsa.statespace.SARIMAX(
         tra,
-        # order=(4,1,5),
-        # seasonal_order=(4,1,5,52),
         order=(best_p, best_d, best_q),
         seasonal_order=(best_P, best_D, best_Q, 52),
         exog=exog_train,
@@ -163,7 +127,6 @@ def train(vpn, best_p, best_d, best_q, best_P, best_D, best_Q):
     folder = f"/dbfs/mnt/dev/bsr_trend/sarimax_forecasting/{encoded_vpn}"
     os.makedirs(folder, exist_ok=True)
 
-
     buf.to_csv(f"{folder}/dataset.csv")
     tra.to_csv(f"{folder}/dataset_train.csv")
     tes.to_csv(f"{folder}/dataset_test.csv")
@@ -173,13 +136,6 @@ def train(vpn, best_p, best_d, best_q, best_P, best_D, best_Q):
     sm.iolib.smpickle.save_pickle(model, f"{folder}/arima.pkl")
     with open(f"{folder}/statsmodels.version", "w") as f:
         f.write(sm.__version__)
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
 
 
 # COMMAND ----------
@@ -226,20 +182,12 @@ def get_sales_velocities(vpn):
 
     pred_sales_velocities = pd.DataFrame(list(pred_sales_velocities.items()))
     pred_sales_velocities.columns = ["vpn", "gt"]
-    
+
     vel_pred = pd.merge(sales_velocities, pred_sales_velocities, how="inner", on="vpn")
     vel_pred = vel_pred.drop(columns="weekly_sales")
     vel_pred["mape (%)"] = abs(vel_pred["forecast"] / (vel_pred["gt"] + 0.01) - 1) * 100
     return vel_pred
 
-
-
-# COMMAND ----------
-
-vel_pred = get_sales_velocities(random_vpns[0])
-vel_pred
-
-# COMMAND ----------
 
 def get_mape(vpn):
     metrics = []
@@ -256,9 +204,6 @@ def get_mape(vpn):
     metrics = pd.DataFrame(metrics)
     return metrics
 
-# COMMAND ----------
-
-get_mape(random_vpns[0])
 
 # COMMAND ----------
 
@@ -278,5 +223,3 @@ for vpn in random_vpns:
     print(get_mape(vpn))
 
 # COMMAND ----------
-
-

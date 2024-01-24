@@ -33,6 +33,7 @@
 # MAGIC   WHERE
 # MAGIC     TO_DATE(order_date, "yyyyMMdd") >= "2020-01-01"
 # MAGIC     AND loc_code IN ("148", "168", "188", "210", "228")
+# MAGIC     AND dtl_qty > 0 -- exclude return product
 # MAGIC )
 # MAGIC SELECT
 # MAGIC   style,
@@ -118,6 +119,17 @@
 # MAGIC LEFT JOIN ItemVPNMapping mp ON (s.style = mp.item)
 # MAGIC WHERE mp.vpn IS NOT NULL
 # MAGIC GROUP BY mp.vpn, s.order_week;
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC CREATE OR REPLACE TEMPORARY VIEW BSRVPNStyleMapping AS
+# MAGIC SELECT
+# MAGIC   DISTINCT mp.vpn,
+# MAGIC   s.style
+# MAGIC FROM BSRStyleWeeklySales s
+# MAGIC LEFT JOIN ItemVPNMapping mp ON (s.style = mp.item)
+# MAGIC WHERE mp.vpn IS NOT NULL;
 
 # COMMAND ----------
 
@@ -219,6 +231,8 @@ import pandas as pd
 sales = spark.table("BSRVPNWeeklySales").toPandas()
 stock_level = spark.table("BSRVPNStockLevel").toPandas()
 po_qty = spark.table("BSRVPNPO").toPandas()
+vpn_style_map = spark.table("BSRVPNStyleMapping").toPandas()
+vpn_info = spark.table("VPNInfoDetail").toPandas()
 
 # COMMAND ----------
 
@@ -323,6 +337,9 @@ import os
 os.makedirs("/dbfs/mnt/dev/bsr_trend", exist_ok=True)
 sales.to_csv("/dbfs/mnt/dev/bsr_trend/sales.csv", index=False)
 coverage.to_csv("/dbfs/mnt/dev/bsr_trend/week_coverage.csv", index=False)
+vpn_style_map.to_csv("/dbfs/mnt/dev/bsr_trend/vpn_style_map.csv", index=False)
+vpn_info.to_csv("/dbfs/mnt/dev/bsr_trend/vpn_info.csv", index=False)
 
 # COMMAND ----------
+
 
