@@ -11,7 +11,7 @@ from tqdm import tqdm
 from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 import statsmodels.api as sm
 
-from bsr_trend.model_utils import choose_d, choose_p_and_q, choose_seasonal_p_and_q, extract_season_component
+from bsr_trend.model_utils import choose_best_hyperparameter
 from bsr_trend.logger import get_logger
 from bsr_trend.exog_data import get_weekly_traffic, tag_holidays, sales_period
 
@@ -26,10 +26,6 @@ weekly_traffic = get_weekly_traffic().toPandas()
 # for cluster 0 - cluster 0
 path = "/dbfs/mnt/dev/bsr_trend/clustering/dtw_clustering_result/"
 cluster_result = pd.read_csv(os.path.join(path, f"subcluster_mapping_cluster_0.csv"))
-
-# COMMAND ----------
-
-target_vpns = cluster_result[cluster_result["cluster"] == 0]
 
 # COMMAND ----------
 
@@ -83,8 +79,27 @@ for vpn in vpns:
 
 # COMMAND ----------
 
+# remove items that has 0 sales in testing period
+zero_ts_index = [i for i, t in enumerate(tess) if sum(t) == 0]
+zero_ts_index
+
+# COMMAND ----------
+
+tras = [value for i, value in enumerate(tras) if i not in zero_ts_index]
+tess = [value for i, value in enumerate(tess) if i not in zero_ts_index]
+
+# COMMAND ----------
+
+vpns = np.delete(vpns, zero_ts_index)
+
+# COMMAND ----------
+
 tra_avg = pd.concat(tras, axis=1).mean(axis=1) # np.mean(np.array(tras), axis=0)
 tes_avg = pd.concat(tess, axis=1).mean(axis=1) # np.mean(np.array(tess), axis=0)
+
+# COMMAND ----------
+
+tra_avg.plot()
 
 # COMMAND ----------
 
@@ -127,29 +142,7 @@ exog_pred = pred_buf.set_index("order_week")[["holiday_count", "is_sales_period"
 
 # COMMAND ----------
 
-# select hyperparameter
-def choose_best_hyperparameter(tra):
-    # choose best hyperparameter
-    period = 52
-    best_d = choose_d(tra)
-    best_D = choose_d(tra, seasonal=True, period=period)
-    best_p, best_q = choose_p_and_q(tra, best_d)
-
-    season_component = extract_season_component(tra, period=period)
-    # Assuming a seasonal pattern repeating every 24 weeks (half annual seasonality)
-    best_P, best_Q = choose_seasonal_p_and_q(tra, best_D, s=period, order=(best_p, best_d, best_q))
-
-    logger.info(f"Differencing parameter: d = {best_d}")
-    logger.info(f"Seasonal differencing parameter: D = {best_D}")
-    logger.info(f"AR order and MA order: p = {best_p}, q = {best_q}")
-    logger.info(f"Seasonal AR order and MA order: p = {best_P}, q = {best_Q}")
-
-    return best_p, best_d, best_q, best_P, best_D, best_Q
-
-# COMMAND ----------
-
 best_p, best_d, best_q, best_P, best_D, best_Q = choose_best_hyperparameter(tra_avg)
-# found best_p, best_d, best_q, best_P, best_D, best_Q = 2, 1, 4, 1, 0 ,1
 
 # COMMAND ----------
 
@@ -242,7 +235,7 @@ for vpn in tqdm(vpns, total=len(vpns)):
 
     # save results
     encoded_vpn = base64.b64encode(vpn.encode("utf-8")).decode()
-    folder = f"/dbfs/mnt/dev/bsr_trend/sarimax_forecasting_new_exog/{encoded_vpn}"
+    folder = f"/dbfs/mnt/dev/bsr_trend/sarimax_forecasting_new_exog_remove_negqty/{encoded_vpn}"
     os.makedirs(folder, exist_ok=True)
 
     tra.to_csv(f"{folder}/dataset_train.csv")
@@ -269,7 +262,7 @@ all_test_preds = []
 mapes = []
 for vpn in tqdm(vpns, total=len(vpns)):
     encoded_vpn = base64.b64encode(vpn.encode("utf-8")).decode()
-    folder = f"/dbfs/mnt/dev/bsr_trend/sarimax_forecasting_new_exog/{encoded_vpn}"
+    folder = f"/dbfs/mnt/dev/bsr_trend/sarimax_forecasting_new_exog_remove_negqty/{encoded_vpn}"
     tes = pd.read_csv(f"{folder}/dataset_test.csv")
     test = pd.read_csv(f"{folder}/dataset_prediction_on_test.csv")
     error = mean_absolute_percentage_error(tes["qty"], test["predicted_mean"])
@@ -282,17 +275,7 @@ for vpn in tqdm(vpns, total=len(vpns)):
 # COMMAND ----------
 
 agg_testing_error = pd.DataFrame(test_and_preds, columns=["vpn", "test_qty", "test_pred"])
-
-# COMMAND ----------
-
-agg_testing_error
-
-# COMMAND ----------
-
 agg_testing_error["mape (%)"] = abs(agg_testing_error["test_pred"] / (agg_testing_error["test_qty"]+0.01) - 1) * 100
-
-# COMMAND ----------
-
 display(agg_testing_error)
 
 # COMMAND ----------
