@@ -1,4 +1,13 @@
 # Databricks notebook source
+dbutils.widgets.removeAll()
+dbutils.widgets.text("cluster_no", "")
+dbutils.widgets.text("clustering_method", "")
+
+cluster_no = getArgument("cluster_no")
+clustering_method = getArgument("clustering_method")
+
+# COMMAND ----------
+
 import base64
 import json
 import os
@@ -24,8 +33,11 @@ weekly_traffic = get_weekly_traffic().toPandas()
 # COMMAND ----------
 
 # for cluster 0 - cluster 0
-path = "/dbfs/mnt/dev/bsr_trend/clustering/dtw_clustering_result/"
-cluster_result = pd.read_csv(os.path.join(path, f"subcluster_mapping_cluster_0.csv"))
+path = f"/dbfs/mnt/dev/bsr_trend/clustering/{clustering_method}/"
+cluster_result = pd.read_csv(os.path.join(path, f"cluster_mapping.csv"))
+
+result_path = os.path.join(path, "sarimax_result", f"cluster_{cluster_no}")
+os.makedirs(result_path, exist_ok=True)
 
 # COMMAND ----------
 
@@ -33,7 +45,7 @@ cluster_result = pd.read_csv(os.path.join(path, f"subcluster_mapping_cluster_0.c
 sales = pd.read_csv("/dbfs/mnt/dev/bsr_trend/sales.csv")
 sales["order_week"] = pd.to_datetime(sales["order_week"])
 
-sales = target_vpns[["vpn"]].merge(sales, how="left", on="vpn")
+sales = cluster_result[["vpn"]].merge(sales, how="left", on="vpn")
 start, end = sales["order_week"].min(), sales["order_week"].max()
 date_range = pd.date_range(start, end, freq="W-MON")
 
@@ -51,10 +63,18 @@ pred_buf = pred_buf.set_index("order_week")
 
 # COMMAND ----------
 
-vpns = np.unique(sales["vpn"])
+# check if the training period >= 52*2 weeks
+# for the SARIMAX model to work
+_tr_start = datetime.datetime.strptime(tr_start, "%Y-%m-%d")
+_tr_end = datetime.datetime.strptime(tr_end, "%Y-%m-%d")
+diff = (_tr_end - _tr_start).days // 7
+
+if diff < 104:
+    dbutils.notebook.exit(f"Only {diff} weeks in the training data")
 
 # COMMAND ----------
 
+vpns = np.unique(sales["vpn"])
 # fill 0 so that the length of each series is the same
 tras = []
 tess = []
@@ -81,21 +101,15 @@ for vpn in vpns:
 
 # remove items that has 0 sales in testing period
 zero_ts_index = [i for i, t in enumerate(tess) if sum(t) == 0]
-zero_ts_index
-
-# COMMAND ----------
-
 tras = [value for i, value in enumerate(tras) if i not in zero_ts_index]
 tess = [value for i, value in enumerate(tess) if i not in zero_ts_index]
-
-# COMMAND ----------
-
 vpns = np.delete(vpns, zero_ts_index)
+print(f"removed {vpns[zero_ts_index]}")
 
 # COMMAND ----------
 
-tra_avg = pd.concat(tras, axis=1).mean(axis=1) # np.mean(np.array(tras), axis=0)
-tes_avg = pd.concat(tess, axis=1).mean(axis=1) # np.mean(np.array(tess), axis=0)
+tra_avg = pd.concat(tras, axis=1).mean(axis=1)
+tes_avg = pd.concat(tess, axis=1).mean(axis=1)
 
 # COMMAND ----------
 
@@ -103,51 +117,11 @@ tra_avg.plot()
 
 # COMMAND ----------
 
-# exog data
-# weekly_traffic
-wt = weekly_traffic.set_index("week_start_date")["weekly_traffic"]
-
-# holidays
-buf["order_week"] = buf.index
-buf['order_week'] = pd.to_datetime(buf['order_week'])
-buf['holiday_count'] = buf.groupby(pd.Grouper(key='order_week', freq='W-MON'))['order_week'].transform(lambda x: sum(x.map(tag_holidays)))
-
-# sales
-buf["is_sales_period"] = buf["order_week"].apply(lambda d: sales_period(d))
-
-buf["weekly_traffic"] = wt
-
-exog = buf[["holiday_count", "is_sales_period", "weekly_traffic"]]
-exog_train = exog[tr_start:tr_end].dropna()
-exog_test = exog[te_start:te_end].dropna()
-
-# exog_pred
-pred_buf['order_week'] = pd.to_datetime(pred_buf.index)
-
-pred_buf["year"] = pred_buf["order_week"].dt.year
-pred_buf["last_year"] = pred_buf["year"] - 1
-pred_buf['week_number'] = pred_buf['order_week'].dt.week
-
-weekly_traffic["year"] = weekly_traffic["week_start_date"].dt.year
-weekly_traffic["week_number"] = weekly_traffic["week_start_date"].dt.week
-
-pred_buf = pred_buf.merge(weekly_traffic[["weekly_traffic", "year", "week_number"]], left_on=["last_year", "week_number"], right_on=["year", "week_number"])[["order_week", "weekly_traffic"]]
-
-# holiday
-pred_buf['holiday_count'] = pred_buf.groupby(pd.Grouper(key='order_week', freq='W-MON'))['order_week'].transform(lambda x: sum(x.map(tag_holidays)))
-
-# sales
-pred_buf["is_sales_period"] = pred_buf["order_week"].apply(lambda d: sales_period(d))
-exog_pred = pred_buf.set_index("order_week")[["holiday_count", "is_sales_period", "weekly_traffic"]].dropna()
+tes_avg.plot()
 
 # COMMAND ----------
 
 best_p, best_d, best_q, best_P, best_D, best_Q = choose_best_hyperparameter(tra_avg)
-
-# COMMAND ----------
-
-tra = tra_avg
-tes = tes_avg
 
 # COMMAND ----------
 
@@ -165,7 +139,7 @@ def prepare_training_data(vpn, pred_buf):
     # dynamic start date for each product
     tr_start = buf[buf.vpn.notna()]["order_week"].min().to_pydatetime()
     logger.info(f"first purchase date: {tr_start}")
-    if tr_start > datetime.datetime.strptime(tr_end, '%Y-%m-%d') - datetime.timedelta(days=3*30):
+    if tr_start > datetime.datetime.strptime(tr_end, '%Y-%m-%d') - datetime.timedelta(days=3 * 30):
         # at least 3 months of training data, skip 
         logger.info(f"item '{vpn}' is skipped")
         status = "skip"
@@ -191,7 +165,8 @@ def prepare_training_data(vpn, pred_buf):
     # holidays
     buf["order_week"] = buf.index
     buf['order_week'] = pd.to_datetime(buf['order_week'])
-    buf['holiday_count'] = buf.groupby(pd.Grouper(key='order_week', freq='W-MON'))['order_week'].transform(lambda x: sum(x.map(tag_holidays)))
+    buf['holiday_count'] = buf.groupby(pd.Grouper(key='order_week', freq='W-MON'))['order_week'].transform(
+        lambda x: sum(x.map(tag_holidays)))
 
     # sales
     buf["is_sales_period"] = buf["order_week"].apply(lambda d: sales_period(d))
@@ -204,6 +179,7 @@ def prepare_training_data(vpn, pred_buf):
     exog_pred = pred_buf.set_index("order_week")[["holiday_count", "is_sales_period", "weekly_traffic"]].dropna()
 
     return tra, tes, exog_train, exog_test, exog_pred
+
 
 # COMMAND ----------
 
@@ -235,7 +211,7 @@ for vpn in tqdm(vpns, total=len(vpns)):
 
     # save results
     encoded_vpn = base64.b64encode(vpn.encode("utf-8")).decode()
-    folder = f"/dbfs/mnt/dev/bsr_trend/sarimax_forecasting_new_exog_remove_negqty/{encoded_vpn}"
+    folder = os.path.join(result_path, encoded_vpn)
     os.makedirs(folder, exist_ok=True)
 
     tra.to_csv(f"{folder}/dataset_train.csv")
@@ -262,20 +238,20 @@ all_test_preds = []
 mapes = []
 for vpn in tqdm(vpns, total=len(vpns)):
     encoded_vpn = base64.b64encode(vpn.encode("utf-8")).decode()
-    folder = f"/dbfs/mnt/dev/bsr_trend/sarimax_forecasting_new_exog_remove_negqty/{encoded_vpn}"
+    folder = os.path.join(result_path, encoded_vpn)
     tes = pd.read_csv(f"{folder}/dataset_test.csv")
     test = pd.read_csv(f"{folder}/dataset_prediction_on_test.csv")
     error = mean_absolute_percentage_error(tes["qty"], test["predicted_mean"])
     test_and_pred = [vpn, sum(tes["qty"]), sum(test["predicted_mean"])]
     test_and_preds.append(test_and_pred)
     mapes.append(error)
-    all_tests.append(tes)     
-    all_test_preds.append(test)                 
+    all_tests.append(tes)
+    all_test_preds.append(test)
 
 # COMMAND ----------
 
-agg_testing_error = pd.DataFrame(test_and_preds, columns=["vpn", "test_qty", "test_pred"])
-agg_testing_error["mape (%)"] = abs(agg_testing_error["test_pred"] / (agg_testing_error["test_qty"]+0.01) - 1) * 100
+agg_testing_error = pd.DataFrame(test_and_preds, columns=["vpn", "gt", "model_pred"])
+agg_testing_error["model_mape (%)"] = abs(agg_testing_error["model_pred"] / (agg_testing_error["gt"] + 0.01) - 1) * 100
 display(agg_testing_error)
 
 # COMMAND ----------
@@ -312,13 +288,14 @@ for vpn in tqdm(vpns, total=len(vpns)):
     buf["order_week"] = buf.index
     buf["qty"] = buf["qty"].fillna(0).astype(int)
     buf = buf[["order_week", "qty"]]
+    # sales velocity for 
     buf = buf[(buf["order_week"] >= tr_start) & (buf["order_week"] <= tr_end)]
     sales_velocity = buf["qty"].mean()
     sales_velocities[vpn] = sales_velocity
 
 sales_velocities = pd.DataFrame(list(sales_velocities.items()))
 sales_velocities.columns = ["vpn", "weekly_sales"]
-sales_velocities["forecast"] = sales_velocities["weekly_sales"] * len(pd.date_range(te_start, te_end, freq="W-MON"))
+sales_velocities["sales_vel_pred"] = sales_velocities["weekly_sales"] * len(pd.date_range(te_start, te_end, freq="W-MON"))
 
 # COMMAND ----------
 
@@ -346,7 +323,7 @@ pred_sales_velocities.columns = ["vpn", "gt"]
 
 vel_pred = pd.merge(sales_velocities, pred_sales_velocities, how="inner", on="vpn")
 vel_pred = vel_pred.drop(columns="weekly_sales")
-vel_pred["mape (%)"] = abs(vel_pred["forecast"] / (vel_pred["gt"]+0.01) - 1) * 100
+vel_pred["vel_mape (%)"] = abs(vel_pred["sales_vel_pred"] / (vel_pred["gt"] + 0.01) - 1) * 100
 
 # COMMAND ----------
 
@@ -354,4 +331,6 @@ display(vel_pred)
 
 # COMMAND ----------
 
-
+# join agg_testing_error and vel_pred of testing period
+result = vel_pred[["vpn", "sales_vel_pred", "vel_mape (%)"]].merge(agg_testing_error, how="left", on="vpn")
+result.to_csv(os.path.join(result_path, "agg_result.csv"), index=False)
