@@ -30,9 +30,12 @@ def choose_d(tra, d=0, alpha=0.05, seasonal=False, period=52):
     # else, increase d until stationary
     if seasonal is True:
         tra = extract_season_component(tra, period=period)
+        var = "D"
+    else:
+        var = "d"
     result = sm.tsa.stattools.adfuller(tra)
     p_value = result[1]
-    logger.info(f"p-value: {p_value}, d: {d}")
+    logger.info(f"p-value: {p_value}, {var}: {d}")
     if p_value < alpha:
         # If p-value is less than 0.05, reject the null hypothesis
         # and conclude that the series is stationary
