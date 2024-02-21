@@ -23,13 +23,13 @@ def average_dtw(time_series: np.ndarray, labels: np.ndarray):
     s = []
     for m in dtw_matrix:
         m = m[~np.eye(m.shape[0], dtype=bool)]  # exclude diagonal
-        s.append((np.sum(m), np.mean(m), np.min(m), np.max(m), len(m)))
+        s.append((np.sum(m), np.mean(m), np.min(m) if m.shape[0] > 0 else 0, np.max(m) if m.shape[0] > 0 else 0, len(m)))
 
-    return pd.DataFrame(zip(s, [len(m) for m in dtw_matrix]), columns=["total_dtw", "avg_dtw", "min_dtw", "max_dtw", "no_of_vpns"])
+    return pd.DataFrame(s, columns=["total_dtw", "avg_dtw", "min_dtw", "max_dtw", "no_of_vpns"])
 
 
 def plot_clusters(time_series: np.ndarray, labels: np.ndarray):
-    plot_count = math.ceil(math.sqrt(len(labels)))
+    plot_count = math.ceil(math.sqrt(len(np.unique(labels))))
     fig, axs = plt.subplots(plot_count, plot_count, figsize=(25, 25))
     fig.suptitle("Clusters")
     row_i = 0
@@ -53,8 +53,8 @@ def plot_clusters(time_series: np.ndarray, labels: np.ndarray):
 
 
 def plot_cluster_distribution(labels: np.ndarray):
-    cluster_c = [len(labels[labels == i]) for i in range(len(labels))]
-    cluster_n = ["Cluster " + str(i) for i in range(len(labels))]
+    cluster_c = [len(labels[labels == i]) for i in range(len(set(labels)))]
+    cluster_n = ["Cluster " + str(i) for i in range(len(set(labels)))]
     print(cluster_c, cluster_n)
 
     plt.figure(figsize=(15, 5))
