@@ -18,7 +18,7 @@ import numpy as np
 from tslearn.clustering import TimeSeriesKMeans
 from tslearn.metrics import cdist_dtw
 
-from bsr_trend.test_temporal_clustering.evaluate import silhouette_score, average_dtw, plot_clusters, plot_cluster_distribution
+from bsr_trend.temporal_clustering.evaluate import silhouette_score, average_dtw, plot_clusters, plot_cluster_distribution
 
 # COMMAND ----------
 

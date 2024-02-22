@@ -7,6 +7,7 @@ IS_DATABRICKS = "DATABRICKS_RUNTIME_VERSION" in os.environ
 
 TREND_CLASSIFICATION_RESULT = "lc_dev.ml_trend_analysis_silver.trend_classification"
 
+
 def uc_table_exists(full_table_name) -> bool:
     return spark.catalog.tableExists(full_table_name)
 
