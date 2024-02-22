@@ -5,6 +5,11 @@ from bsr_trend.logger import get_logger
 logger = get_logger()
 
 
+def get_sales_table() -> pd.DataFrame:
+    ...
+    return sales
+
+
 def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
     """get ts data from table"""
     sales["order_week"] = pd.to_datetime(sales["order_week"])
