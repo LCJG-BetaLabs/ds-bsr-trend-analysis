@@ -222,9 +222,16 @@
 # COMMAND ----------
 
 import datetime
-
 import matplotlib.pyplot as plt
 import pandas as pd
+
+from bsr_trend.utils.catalog import (
+    write_uc_table,
+    SALES,
+    WEEK_COVERAGE,
+    VPN_STYLE_MAP,
+    VPN_INFO,
+)
 
 # COMMAND ----------
 
@@ -332,13 +339,27 @@ coverage
 
 # COMMAND ----------
 
-import os
-
-os.makedirs("/dbfs/mnt/dev/bsr_trend", exist_ok=True)
-sales.to_csv("/dbfs/mnt/dev/bsr_trend/sales.csv", index=False)
-coverage.to_csv("/dbfs/mnt/dev/bsr_trend/week_coverage.csv", index=False)
-vpn_style_map.to_csv("/dbfs/mnt/dev/bsr_trend/vpn_style_map.csv", index=False)
-vpn_info.to_csv("/dbfs/mnt/dev/bsr_trend/vpn_info.csv", index=False)
+# save to uc
+write_uc_table(
+    SALES,
+    sales,
+    mode="overwrite",
+)
+write_uc_table(
+    WEEK_COVERAGE,
+    coverage,
+    mode="overwrite",
+)
+write_uc_table(
+    VPN_STYLE_MAP,
+    vpn_style_map,
+    mode="overwrite",
+)
+write_uc_table(
+    VPN_INFO,
+    vpn_info,
+    mode="overwrite",
+)
 
 # COMMAND ----------
 

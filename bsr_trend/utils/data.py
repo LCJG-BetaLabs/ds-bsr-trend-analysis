@@ -1,12 +1,19 @@
 import numpy as np
 import pandas as pd
 from bsr_trend.logger import get_logger
+from bsr_trend.utils.catalog import SALES, VPN_INFO
+from databricks.sdk.runtime import spark
 
 logger = get_logger()
 
 
 def get_sales_table() -> pd.DataFrame:
-    ...
+    sales = spark.table(SALES).toPandas()
+    # dev: take spa for testing
+    vpn_info = spark.table(VPN_INFO).toPandas()
+    sales = sales.merge(vpn_info[["vpn", "category"]], how="left", on="vpn")
+    sales = sales[sales["category"] == '6409- Home Fragrance & Spa']
+    sales = sales.drop("category", axis=1)
     return sales
 
 

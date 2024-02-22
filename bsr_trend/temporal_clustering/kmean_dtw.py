@@ -18,7 +18,16 @@ import numpy as np
 from tslearn.clustering import TimeSeriesKMeans
 from tslearn.metrics import cdist_dtw
 
-from bsr_trend.temporal_clustering.evaluate import silhouette_score, average_dtw, plot_clusters, plot_cluster_distribution
+from bsr_trend.temporal_clustering.evaluate import (
+    silhouette_score,
+    average_dtw,
+    plot_clusters,
+    plot_cluster_distribution,
+)
+from bsr_trend.utils.data import (
+    get_sales_table,
+    get_time_series,
+)
 
 # COMMAND ----------
 
@@ -30,66 +39,20 @@ os.makedirs(breakdown_path, exist_ok=True)
 # COMMAND ----------
 
 # load data
-sales = pd.read_csv("/dbfs/mnt/dev/bsr_trend/sales.csv")
-sales["order_week"] = pd.to_datetime(sales["order_week"])
-
-vpn_info = pd.read_csv("/dbfs/mnt/dev/bsr_trend/vpn_info.csv")
+sales = get_sales_table()
+vpns = np.unique(sales["vpns"])
 
 # COMMAND ----------
 
-sales = sales.merge(vpn_info[["vpn", "category"]], how="left", on="vpn")
-# clustering by category
-# dev: take spa for testing
-sales = sales[sales["category"] == '6409- Home Fragrance & Spa']
-sales["vpn"].nunique()
-
-# COMMAND ----------
-
-start, end = sales["order_week"].min(), sales["order_week"].max()
-date_range = pd.date_range(start, end, freq="W-MON")
-
-# train_test_split
-tr_start, tr_end = start.strftime('%Y-%m-%d'), '2023-09-01'
-te_start, te_end = '2023-09-01', '2023-11-30'
-pred_start, pred_end = te_start, "2024-02-29"
-real_pred_start = "2023-12-01"
-
-pred_date_range = pd.date_range(pred_start, pred_end, freq="W-MON")
-pred_buf = pd.DataFrame(index=pred_date_range).reset_index()
-pred_buf.columns = ["order_week"]
-pred_buf = pred_buf.set_index("order_week")
-
-# COMMAND ----------
-
-vpns = np.unique(sales["vpn"])
-
-# fill 0 so that the length of each series is the same
-time_series = []
-for vpn in vpns:
-    subdf = sales[sales["vpn"] == vpn].set_index("order_week")
-    buf = pd.merge(
-        pd.DataFrame(index=date_range),
-        subdf,
-        how="left",
-        left_index=True,
-        right_index=True,
-    )
-    buf["order_week"] = buf.index
-    buf = buf.drop(["vpn", "amt", "order_week", "category"], axis=1)
-    buf = buf.fillna(0).astype(int)
-
-    # take training period
-    tra = buf['qty'][tr_start:tr_end].dropna()
-    tra.sort_index(inplace=True)
-    time_series.append(list(tra))
-
+tr_end = '2023-09-01'
+time_series = get_time_series(sales, dynamic_start=False, end_date=tr_end)
 time_series = np.array(time_series)
 time_series.shape
 
 # COMMAND ----------
 
 # Dynamic Time Warping (DTW) + k-mean clustering
-cluster_count = math.ceil(math.sqrt(len(time_series))) 
+cluster_count = math.ceil(math.sqrt(len(time_series)))
 print(cluster_count)
 # A good rule of thumb is choosing k as the square root of the number of points in the training data set in kNN
 
@@ -163,7 +126,7 @@ for c in big_cluster:
         tra.sort_index(inplace=True)
         time_series.append(list(tra))
 
-    cluster_count = math.ceil(math.sqrt(len(time_series))) 
+    cluster_count = math.ceil(math.sqrt(len(time_series)))
     print(cluster_count)
     # A good rule of thumb is choosing k as the square root of the number of points in the training data set in kNN
 
@@ -173,7 +136,7 @@ for c in big_cluster:
     som_x = som_y = math.ceil(math.sqrt(math.sqrt(len(time_series))))
 
     plot_count = math.ceil(math.sqrt(cluster_count))
-    
+
     fig, axs = plt.subplots(plot_count, plot_count, figsize=(25, 25))
     fig.suptitle("Clusters")
     row_i = 0
@@ -256,7 +219,6 @@ for l in labels_list:
 # COMMAND ----------
 
 
-
 # COMMAND ----------
 
 df
@@ -309,5 +271,3 @@ with open(os.path.join(breakdown_path, "kmean_dtw_model.pkl"), "wb") as f:
 os.path.join(breakdown_path, "cluster_mapping.csv")
 
 # COMMAND ----------
-
-
