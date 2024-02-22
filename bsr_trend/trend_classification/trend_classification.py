@@ -21,7 +21,14 @@ np.unique(history_result, return_counts=True)
 
 # save result
 vpns = np.unique(sales["vpn"])
-result = pd.DataFrame({"vpn": vpns, "trend_class": trend_result, "history": history_result,"train_end": tr_end})
+result = pd.DataFrame(
+    {
+        "vpn": vpns,
+        "trend_class": trend_result,
+        "history": history_result,
+        "train_end": tr_end,
+    }
+)
 
 write_uc_table(
     TREND_CLASSIFICATION_RESULT,
