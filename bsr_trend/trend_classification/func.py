@@ -39,3 +39,15 @@ def classify_trend(time_series):
     result[np.logical_and(adi >= 1.32, cov2 < 0.49)] = "intermittent"
     result[np.logical_or(adi == -1, cov2 == -1)] = "zero_ts"
     return result
+
+
+def classify_by_history(time_series):
+    result = []
+    for ts in time_series:
+        if len(ts) >= 52:
+            result.append("history>=12months")
+        elif len(ts) >= 12 and len(ts) < 52:
+            result.append("3months<=history<12months")
+        else:
+            result.append("history<3months")
+    return result
