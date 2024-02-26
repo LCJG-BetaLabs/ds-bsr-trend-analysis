@@ -51,7 +51,7 @@ def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
                 start_date = start
             tra = buf['qty'][start:end_date].dropna()
             tra.sort_index(inplace=True)
-            time_series.append(list(tra))
+            time_series.append(tra)
     else:
         # start date of each time series is the first purchase date
         # dynamic start date for each product
@@ -75,5 +75,5 @@ def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
             # take period
             tra = buf['qty'][start:end_date].dropna()
             tra.sort_index(inplace=True)
-            time_series.append(list(tra))
+            time_series.append(tra)
     return time_series
