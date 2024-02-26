@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 import statsmodels.api as sm
+from tqdm import tqdm
 
 from bsr_trend.model_utils import choose_best_hyperparameter
 from bsr_trend.logger import get_logger
@@ -29,6 +30,7 @@ os.makedirs(result_path, exist_ok=True)
 sales = get_sales_table()
 cluster_mapping = spark.table(CLUSTERING_MAPPING).toPandas()
 sales = sales.merge(cluster_mapping[["vpn", "cluster"]], on="vpn", how="left")
+sales = sales[~sales["cluster"].isna()]
 
 # COMMAND ----------
 
@@ -40,15 +42,9 @@ te_start, te_end = "2023-09-01", "2023-11-30"
 pred_start, pred_end = te_start, "2024-02-29"
 real_pred_start = "2023-12-01"
 
-pred_date_range = pd.date_range(pred_start, pred_end, freq="W-MON")
-# pred_buf = pd.DataFrame(index=pred_date_range).reset_index()
-# pred_buf.columns = ["order_week"]
-# pred_buf = pred_buf.set_index("order_week")
-
 # COMMAND ----------
 
 weekly_traffic = get_weekly_traffic().toPandas()
-
 
 # COMMAND ----------
 
@@ -157,7 +153,7 @@ def evaluate():
 
 distinct_cluster = np.unique(sales["cluster"])
 
-for cluster in distinct_cluster:
+for cluster in tqdm(distinct_cluster):
     subdf = sales[sales["cluster"] == cluster]
     tra = get_time_series(subdf, dynamic_start=False, start_date=None, end_date=tr_end)
     tes = get_time_series(subdf, dynamic_start=False, start_date=te_start, end_date=te_end)
@@ -168,19 +164,22 @@ for cluster in distinct_cluster:
 
     # select hyperparameter and save
     save_path = os.path.join(result_path, cluster)
+    os.makedirs(save_path, exist_ok=True)
     hyperparameters = select_hyperparameter(tra_avg, save_path=save_path)
 
     # exog variable
     exog_train = get_exog_variable(start_date=tr_start, end_date=tr_end)
-    exog_test = get_exog_variable(start_date=te_end, end_date=te_end)
+    exog_test = get_exog_variable(start_date=te_start, end_date=te_end)
     exog_pred = get_exog_variable(start_date=pred_start, end_date=pred_end)
 
     # train
     vpns = np.unique(subdf["vpn"])
-    for vpn in vpns:
-        train(vpn, tra, tes, exog_train, exog_test, exog_pred, hyperparameters, save_path)
+    for vpn, _tra, _tes in zip(vpns, tra, tes):
+        train(vpn, _tra, _tes, exog_train, exog_test, exog_pred, hyperparameters, save_path)
 
     # evaluate (excel report as output)
     evaluate()
 
 # COMMAND ----------
+
+
