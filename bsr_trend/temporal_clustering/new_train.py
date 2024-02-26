@@ -144,9 +144,53 @@ def train(vpn, tra, tes, exog_train, exog_test, exog_pred, hyperparameters, save
     logger.info(f"Results saved to {folder}")
 
 
-def evaluate():
-    ...
-    return
+def evaluate(vpns, save_path, info=None):
+    # agg test pred and evaluate
+    # MAPE for testing period, for each product
+    gt_and_pred = []
+    for vpn in tqdm(vpns, total=len(vpns)):
+        encoded_vpn = base64.b64encode(vpn.encode("utf-8")).decode()
+        folder = os.path.join(save_path, encoded_vpn)
+        tes = pd.read_csv(f"{folder}/dataset_test.csv")
+        test = pd.read_csv(f"{folder}/dataset_prediction_on_test.csv")
+        test_and_pred = [vpn, sum(tes["qty"]), sum(test["predicted_mean"])]
+        gt_and_pred.append(test_and_pred)
+
+    agg_testing_error = pd.DataFrame(gt_and_pred, columns=["vpn", "gt", "model_pred"])
+    agg_testing_error["model_mape (%)"] = abs(agg_testing_error["model_pred"] / (agg_testing_error["gt"]) - 1) * 100
+
+    # get sales vel
+    sales_velocities = {}
+    for vpn in tqdm(vpns, total=len(vpns)):
+        subdf = sales[sales["vpn"] == vpn].set_index("order_week")
+        start, end = subdf["order_week"].min(), subdf["order_week"].max()
+        date_range = pd.date_range(start, end, freq="W-MON")
+        buf = pd.merge(
+            pd.DataFrame(index=date_range),
+            subdf,
+            how="left",
+            left_index=True,
+            right_index=True,
+        )
+        buf["order_week"] = buf.index
+        buf["qty"] = buf["qty"].fillna(0).astype(int)
+        buf = buf[["order_week", "qty"]]
+        buf = buf[(buf["order_week"] >= tr_start) & (buf["order_week"] <= tr_end)]
+        sales_velocity = buf["qty"].mean()
+        sales_velocities[vpn] = sales_velocity
+
+    sales_velocities = pd.DataFrame(list(sales_velocities.items()))
+    sales_velocities.columns = ["vpn", "weekly_sales"]
+    sales_velocities["sales_vel_pred"] = sales_velocities["weekly_sales"] * len(
+        pd.date_range(te_start, te_end, freq="W-MON"))
+
+    # join table
+    result = sales_velocities[["vpn", "sales_vel_pred", "vel_mape (%)"]].merge(agg_testing_error, how="left", on="vpn")
+    result["info"] = info
+    result = result[["vpn", "gt", "sales_vel_pred", "vel_mape (%)", "model_pred", "model_mape (%)"]]
+    # save
+    result.to_csv(os.path.join(save_path, "model_report.csv"), index=False)
+    display(result)
 
 
 # COMMAND ----------
@@ -178,8 +222,16 @@ for cluster in tqdm(distinct_cluster):
         train(vpn, _tra, _tes, exog_train, exog_test, exog_pred, hyperparameters, save_path)
 
     # evaluate (excel report as output)
-    evaluate()
+    evaluate(vpns, save_path, info=cluster)
 
 # COMMAND ----------
 
+# concat all reports
+results = []
+for cluster in tqdm(distinct_cluster):
+    save_path = os.path.join(result_path, cluster)
+    result = pd.read_csv(os.path.join(save_path, "model_report.csv"))
+    results.append(result)
 
+report = pd.concat(results)
+report.to_csv(result_path, "model_report.csv")
