@@ -206,23 +206,30 @@ for cluster in tqdm(distinct_cluster):
     tra_avg = pd.concat(tra, axis=1).mean(axis=1)
     tes_avg = pd.concat(tes, axis=1).mean(axis=1)
 
-    # select hyperparameter and save
     save_path = os.path.join(result_path, cluster)
     os.makedirs(save_path, exist_ok=True)
-    hyperparameters = select_hyperparameter(tra_avg, save_path=save_path)
 
-    # exog variable
-    exog_train = get_exog_variable(start_date=tr_start, end_date=tr_end)
-    exog_test = get_exog_variable(start_date=te_start, end_date=te_end)
-    exog_pred = get_exog_variable(start_date=pred_start, end_date=pred_end)
+    if len(tra_avg) >= 104:
+        # select hyperparameter and save
+        hyperparameters = select_hyperparameter(tra_avg, save_path=save_path)
 
-    # train
-    vpns = np.unique(subdf["vpn"])
-    for vpn, _tra, _tes in zip(vpns, tra, tes):
-        train(vpn, _tra, _tes, exog_train, exog_test, exog_pred, hyperparameters, save_path)
+        # exog variable
+        exog_train = get_exog_variable(start_date=tra_avg.index.min(), end_date=tr_end)
+        exog_test = get_exog_variable(start_date=te_start, end_date=te_end)
+        exog_pred = get_exog_variable(start_date=pred_start, end_date=pred_end)
 
-    # evaluate (excel report as output)
-    evaluate(vpns, save_path, info=cluster)
+        # train
+        vpns = np.unique(subdf["vpn"])
+        for vpn, _tra, _tes in zip(vpns, tra, tes):
+            train(vpn, _tra, _tes, exog_train, exog_test, exog_pred, hyperparameters, save_path)
+
+        # evaluate (excel report as output)
+        evaluate()
+    else:
+        logger.info(f"{cluster} is skipped, len(training_period) < 104")
+        skipped_items = subdf[["vpn"]]
+        skipped_items["info"] = f"len(training_period) < 104, {cluster}"
+        skipped_items.to_csv(os.path.join(save_path, "skipped_report.csv"))
 
 # COMMAND ----------
 
