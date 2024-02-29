@@ -6,6 +6,13 @@ from databricks.sdk.runtime import spark
 IS_DATABRICKS = "DATABRICKS_RUNTIME_VERSION" in os.environ
 
 TREND_CLASSIFICATION_RESULT = "lc_dev.ml_trend_analysis_silver.trend_classification"
+SALES = "lc_dev.ml_trend_analysis_silver.sales"
+WEEK_COVERAGE = "lc_dev.ml_trend_analysis_silver.week_coverage"
+VPN_STYLE_MAP = "lc_dev.ml_trend_analysis_silver.vpn_style_map"
+VPN_INFO = "lc_dev.ml_trend_analysis_silver.vpn_info"
+CLUSTERING_MAPPING = "lc_dev.ml_trend_analysis_silver.clustering_mapping"
+KMEAN_DIRS = "/dbfs/mnt/dev/bsr_trend/clustering/kmeans/"
+
 
 def uc_table_exists(full_table_name) -> bool:
     return spark.catalog.tableExists(full_table_name)

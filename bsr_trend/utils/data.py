@@ -1,8 +1,21 @@
 import numpy as np
 import pandas as pd
 from bsr_trend.logger import get_logger
+from bsr_trend.utils.catalog import SALES, VPN_INFO
+from databricks.sdk.runtime import spark
 
 logger = get_logger()
+
+
+def get_sales_table() -> pd.DataFrame:
+    sales = spark.table(SALES).toPandas()
+    # dev: take spa for testing
+    vpn_info = spark.table(VPN_INFO).toPandas()
+    sales = sales.merge(vpn_info[["vpn", "category"]], how="left", on="vpn")
+    sales = sales[sales["category"] == '6409- Home Fragrance & Spa']
+    sales = sales.drop("category", axis=1)
+    logger.info("Retrieved sales table with Home Fragrance & Spa only")
+    return sales
 
 
 def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
@@ -30,7 +43,7 @@ def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
                 right_index=True,
             )
             buf["order_week"] = buf.index
-            buf = buf.drop(["vpn", "amt", "order_week"], axis=1)
+            buf = buf[["order_week", "qty"]]
             buf = buf.fillna(0).astype(int)
 
             # take period
@@ -38,7 +51,7 @@ def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
                 start_date = start
             tra = buf['qty'][start:end_date].dropna()
             tra.sort_index(inplace=True)
-            time_series.append(list(tra))
+            time_series.append(tra)
     else:
         # start date of each time series is the first purchase date
         # dynamic start date for each product
@@ -56,11 +69,11 @@ def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
                 right_index=True,
             )
             buf["order_week"] = buf.index
-            buf = buf.drop(["vpn", "amt", "order_week"], axis=1)
+            buf = buf[["order_week", "qty"]]
             buf = buf.fillna(0).astype(int)
 
             # take period
             tra = buf['qty'][start:end_date].dropna()
             tra.sort_index(inplace=True)
-            time_series.append(list(tra))
+            time_series.append(tra)
     return time_series
