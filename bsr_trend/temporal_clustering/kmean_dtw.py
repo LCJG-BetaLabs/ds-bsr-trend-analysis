@@ -47,7 +47,6 @@ def kmean_dtw(time_series, vpns, train_end, save=True, evaluate=True, model_name
 
     if save:
         result = pd.DataFrame({"vpn": vpns, "cluster": labels, "train_end": train_end})
-        #, columns=["vpn", "cluster", "train_end"])
         result["cluster"] = result["cluster"].apply(lambda l: f"{model_name}_{l}")
         write_uc_table(
             CLUSTERING_MAPPING,
