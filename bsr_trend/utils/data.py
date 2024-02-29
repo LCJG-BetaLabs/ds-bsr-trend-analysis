@@ -43,7 +43,7 @@ def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
                 right_index=True,
             )
             buf["order_week"] = buf.index
-            buf = buf.drop(["vpn", "amt", "order_week"], axis=1)
+            buf = buf[["order_week", "qty"]]
             buf = buf.fillna(0).astype(int)
 
             # take period
@@ -69,7 +69,7 @@ def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
                 right_index=True,
             )
             buf["order_week"] = buf.index
-            buf = buf.drop(["vpn", "amt", "order_week"], axis=1)
+            buf = buf[["order_week", "qty"]]
             buf = buf.fillna(0).astype(int)
 
             # take period
