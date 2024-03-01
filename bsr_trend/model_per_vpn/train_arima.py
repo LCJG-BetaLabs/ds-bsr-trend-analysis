@@ -72,10 +72,8 @@ for cluster in tqdm(distinct_cluster):
         test_and_pred = [vpn, sum(_tes), sum(predictions)]
         gt_and_pred.append(test_and_pred)
 
-    agg_testing_error = pd.DataFrame(gt_and_pred, columns=["vpn", "gt", "model_pred", "sales_vel_pred"])
+    agg_testing_error = pd.DataFrame(gt_and_pred, columns=["vpn", "gt", "model_pred"])
     agg_testing_error["model_mape (%)"] = abs(agg_testing_error["model_pred"] / (agg_testing_error["gt"]) - 1) * 100
-    agg_testing_error["sales_vel_mape (%)"] = abs(
-        agg_testing_error["sales_vel_pred"] / (agg_testing_error["gt"]) - 1) * 100
 
     # get sales vel
     sales_velocities = {}
