@@ -110,5 +110,3 @@ for cluster in tqdm(distinct_cluster):
 
 report = pd.concat(report)
 report.to_csv(os.path.join(result_path, "model_report.csv"), index=False)
-
-# COMMAND ----------

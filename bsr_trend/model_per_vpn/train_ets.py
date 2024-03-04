@@ -1,7 +1,8 @@
 # Databricks notebook source
-# MAGIC pip install sktime
+pip install sktime
 
 # COMMAND ----------
+
 import os
 import pandas as pd
 import numpy as np
@@ -15,6 +16,7 @@ result_path = "/dbfs/mnt/dev/bsr_trend/ets_model/"
 os.makedirs(result_path, exist_ok=True)
 
 # COMMAND ----------
+
 sales = get_sales_table()
 
 start, end = sales["order_week"].min(), sales["order_week"].max()
@@ -26,6 +28,10 @@ real_pred_start = "2023-12-01"
 
 # COMMAND ----------
 
+pd.options.mode.chained_assignment = None
+
+# COMMAND ----------
+
 vpns = np.unique(sales["vpn"])
 
 gt_and_pred = []
@@ -34,13 +40,14 @@ for vpn in tqdm(vpns):
     tra = get_time_series(subdf, dynamic_start=True, start_date=None, end_date=tr_end)
     tes = get_time_series(subdf, dynamic_start=False, start_date=te_start, end_date=te_end)
 
-    forecaster = AutoETS(auto=True, n_jobs=-1)
-    forecaster.fit(tra)
-    pred = forecaster.predict(fh=12)
+    if len(tra[0]) > 24: # more than 6 months
+        forecaster = AutoETS(auto=True, n_jobs=-1)
+        forecaster.fit(tra[0])
+        pred = forecaster.predict(fh=range(1, 12))
 
-    # evaluate
-    test_and_pred = [vpn, sum(tes), sum(pred)]
-    gt_and_pred.append(test_and_pred)
+        # evaluate
+        test_and_pred = [vpn, sum(tes[0]), sum(pred)]
+        gt_and_pred.append(test_and_pred)
 
 agg_testing_error = pd.DataFrame(gt_and_pred, columns=["vpn", "gt", "model_pred"])
 agg_testing_error["model_mape (%)"] = abs(agg_testing_error["model_pred"] / (agg_testing_error["gt"]) - 1) * 100
