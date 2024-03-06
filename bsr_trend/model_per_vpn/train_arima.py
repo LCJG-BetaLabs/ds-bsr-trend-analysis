@@ -17,7 +17,7 @@ from bsr_trend.utils.catalog import CLUSTERING_MAPPING
 warnings.simplefilter("ignore")
 logger = get_logger()
 
-path = f"/dbfs/mnt/dev/bsr_trend/clustering/kmeans_dtw/"
+path = f"/dbfs/mnt/dev/bsr_trend/"
 result_path = os.path.join(path, "arima_result")
 os.makedirs(result_path, exist_ok=True)
 
@@ -25,9 +25,6 @@ os.makedirs(result_path, exist_ok=True)
 
 # load data
 sales = get_sales_table()
-cluster_mapping = spark.table(CLUSTERING_MAPPING).toPandas()
-sales = sales.merge(cluster_mapping[["vpn", "cluster"]], on="vpn", how="left")
-sales = sales[~sales["cluster"].isna()]
 
 # COMMAND ----------
 
@@ -41,27 +38,25 @@ real_pred_start = "2023-12-01"
 
 # COMMAND ----------
 
-distinct_cluster = np.unique(sales["cluster"])
-report = []
-for cluster in tqdm(distinct_cluster):
-    subdf = sales[sales["cluster"] == cluster]
+distinct_vpns = np.unique(sales["vpn"])
+
+for vpn in tqdm(distinct_vpns):
+    subdf = sales[sales["vpn"] == vpn]
     tra = get_time_series(subdf, dynamic_start=True, start_date=None, end_date=tr_end)
     tes = get_time_series(subdf, dynamic_start=False, start_date=te_start, end_date=te_end)
 
-    save_path = os.path.join(result_path, cluster)
-    os.makedirs(save_path, exist_ok=True)
+    if len(tra[0]) > 24: # more than 6 months
+        encoded_vpn = base64.b64encode(vpn.encode("utf-8")).decode()
+        folder = os.path.join(result_path, encoded_vpn)
+        os.makedirs(folder, exist_ok=True)
 
-    vpns = np.unique(subdf["vpn"])
-    gt_and_pred = []
+        gt_and_pred = []
 
-    for vpn, _tra, _tes in zip(vpns, tra, tes):
-        model = auto_arima(_tra, seasonal=True, m=52, trace=True)
+        # for vpn, _tra, _tes in zip(vpns, tra, tes):
+        model = auto_arima(tra[0], seasonal=False, trace=True)
         print(model.summary())
 
         # save model
-        encoded_vpn = base64.b64encode(vpn.encode("utf-8")).decode()
-        folder = os.path.join(save_path, encoded_vpn)
-        os.makedirs(folder, exist_ok=True)
         sm.iolib.smpickle.save_pickle(model, f"{folder}/arima.pkl")
         # save model summary
         summary = model.summary()
@@ -69,44 +64,40 @@ for cluster in tqdm(distinct_cluster):
             file.write(str(summary))
 
         predictions = model.predict(n_periods=12)
-        test_and_pred = [vpn, sum(_tes), sum(predictions)]
+        test_and_pred = [vpn, sum(tes[0]), sum(predictions)]
         gt_and_pred.append(test_and_pred)
 
-    agg_testing_error = pd.DataFrame(gt_and_pred, columns=["vpn", "gt", "model_pred"])
-    agg_testing_error["model_mape (%)"] = abs(agg_testing_error["model_pred"] / (agg_testing_error["gt"]) - 1) * 100
+agg_testing_error = pd.DataFrame(gt_and_pred, columns=["vpn", "gt", "model_pred"])
+agg_testing_error["model_mape (%)"] = abs(agg_testing_error["model_pred"] / (agg_testing_error["gt"]) - 1) * 100
 
-    # get sales vel
-    sales_velocities = {}
-    for vpn in tqdm(vpns, total=len(vpns)):
-        subdf = sales[sales["vpn"] == vpn].set_index("order_week")
-        start, end = subdf.index.min(), subdf.index.max()
-        date_range = pd.date_range(start, end, freq="W-MON")
-        buf = pd.merge(
-            pd.DataFrame(index=date_range),
-            subdf,
-            how="left",
-            left_index=True,
-            right_index=True,
-        )
-        buf["order_week"] = buf.index
-        buf["qty"] = buf["qty"].fillna(0).astype(int)
-        buf = buf[["order_week", "qty"]]
-        buf = buf[(buf["order_week"] >= tr_start) & (buf["order_week"] <= tr_end)]
-        sales_velocity = buf["qty"].mean()
-        sales_velocities[vpn] = sales_velocity
+# get sales vel
+sales_velocities = {}
+for vpn in tqdm(distinct_vpns, total=len(distinct_vpns)):
+    subdf = sales[sales["vpn"] == vpn].set_index("order_week")
+    start, end = subdf.index.min(), subdf.index.max()
+    date_range = pd.date_range(start, end, freq="W-MON")
+    buf = pd.merge(
+        pd.DataFrame(index=date_range),
+        subdf,
+        how="left",
+        left_index=True,
+        right_index=True,
+    )
+    buf["order_week"] = buf.index
+    buf["qty"] = buf["qty"].fillna(0).astype(int)
+    buf = buf[["order_week", "qty"]]
+    buf = buf[(buf["order_week"] >= tr_start) & (buf["order_week"] <= tr_end)]
+    sales_velocity = buf["qty"].mean()
+    sales_velocities[vpn] = sales_velocity
 
-    sales_velocities = pd.DataFrame(list(sales_velocities.items()))
-    sales_velocities.columns = ["vpn", "weekly_sales"]
-    sales_velocities["sales_vel_pred"] = sales_velocities["weekly_sales"] * len(
-        pd.date_range(te_start, te_end, freq="W-MON"))
+sales_velocities = pd.DataFrame(list(sales_velocities.items()))
+sales_velocities.columns = ["vpn", "weekly_sales"]
+sales_velocities["sales_vel_pred"] = sales_velocities["weekly_sales"] * len(
+    pd.date_range(te_start, te_end, freq="W-MON"))
 
-    # join table
-    result = sales_velocities[["vpn", "sales_vel_pred"]].merge(agg_testing_error, how="left", on="vpn")
-    result["vel_mape (%)"] = abs(result["sales_vel_pred"] / result["gt"] - 1) * 100
-    result = result[["vpn", "gt", "sales_vel_pred", "vel_mape (%)", "model_pred", "model_mape (%)"]]
-    result["info"] = cluster
+# join table
+result = sales_velocities[["vpn", "sales_vel_pred"]].merge(agg_testing_error, how="left", on="vpn")
+result["vel_mape (%)"] = abs(result["sales_vel_pred"] / result["gt"] - 1) * 100
+result = result[["vpn", "gt", "sales_vel_pred", "vel_mape (%)", "model_pred", "model_mape (%)"]]
 
-    report.append(result)
-
-report = pd.concat(report)
-report.to_csv(os.path.join(result_path, "model_report.csv"), index=False)
+result.to_csv(os.path.join(result_path, "model_report.csv"), index=False)
