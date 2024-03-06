@@ -25,7 +25,7 @@ def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
     logger.info(f"Number of VPN: {len(vpns)}")
 
     if end_date is None:
-        raise ValueError(f"end_date need to be specified")
+        raise ValueError(f"end_date must be specified")
 
     time_series = []
     if not dynamic_start:
@@ -49,7 +49,8 @@ def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
             # take period
             if start_date is None:
                 start_date = start
-            tra = buf['qty'][start:end_date].dropna()
+                logger.info(f"""Start date is not specified, taking {start}, the minimum date from sales table.""")
+            tra = buf["qty"][start_date:end_date].dropna()
             tra.sort_index(inplace=True)
             time_series.append(tra)
     else:
@@ -73,7 +74,7 @@ def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
             buf = buf.fillna(0).astype(int)
 
             # take period
-            tra = buf['qty'][start:end_date].dropna()
+            tra = buf["qty"][start:end_date].dropna()
             tra.sort_index(inplace=True)
             time_series.append(tra)
     return time_series
