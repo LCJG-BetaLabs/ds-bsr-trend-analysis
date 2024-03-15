@@ -9,12 +9,6 @@ logger = get_logger()
 
 def get_sales_table() -> pd.DataFrame:
     sales = spark.table(SALES).toPandas()
-    # dev: take spa for testing
-    vpn_info = spark.table(VPN_INFO).toPandas()
-    sales = sales.merge(vpn_info[["vpn", "category"]], how="left", on="vpn")
-    sales = sales[sales["category"] == '6409- Home Fragrance & Spa']
-    sales = sales.drop("category", axis=1)
-    logger.info("Retrieved sales table with Home Fragrance & Spa only")
     return sales
 
 
