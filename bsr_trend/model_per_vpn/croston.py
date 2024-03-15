@@ -3,11 +3,8 @@
 
 # COMMAND ----------
 
-from sktime.forecasting.croston import Croston
-
-# COMMAND ----------
-
 import os
+import datetime
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -17,7 +14,7 @@ from bsr_trend.utils.data import get_sales_table, get_time_series
 
 pd.options.mode.chained_assignment = None
 
-result_path = "/dbfs/mnt/dev/bsr_trend/crostons_method/"
+result_path = f"""/dbfs/mnt/dev/bsr_trend/crostons_method_{str(datetime.datetime.today().date()).replace("-", "")}/"""
 os.makedirs(result_path, exist_ok=True)
 
 # COMMAND ----------
@@ -84,3 +81,7 @@ result["vel_mape (%)"] = abs(result["sales_vel_pred"] / result["gt"] - 1) * 100
 result = result[["vpn", "gt", "sales_vel_pred", "vel_mape (%)", "model_pred", "model_mape (%)"]]
 # save
 result.to_csv(os.path.join(result_path, "model_report.csv"), index=False)
+
+# COMMAND ----------
+
+
