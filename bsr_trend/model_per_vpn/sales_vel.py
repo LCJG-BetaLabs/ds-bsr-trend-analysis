@@ -1,20 +1,14 @@
 # Databricks notebook source
-# MAGIC %pip install sktime
-
-# COMMAND ----------
-
 import os
 import datetime
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from sktime.forecasting.croston import Croston
 
 from bsr_trend.utils.data import get_sales_table, get_time_series
 
-pd.options.mode.chained_assignment = None
 
-result_path = f"""/dbfs/mnt/dev/bsr_trend/crostons_method_{str(datetime.datetime.today().date()).replace("-", "")}/"""
+result_path = f"""/dbfs/mnt/dev/bsr_trend/sales_vel_{str(datetime.datetime.today().date()).replace("-", "")}/"""
 os.makedirs(result_path, exist_ok=True)
 
 # COMMAND ----------
@@ -32,23 +26,12 @@ real_pred_start = "2023-12-01"
 
 vpns = np.unique(sales["vpn"])
 
-gt_and_pred = []
+gt = []
 for vpn in tqdm(vpns):
     subdf = sales[sales["vpn"] == vpn]
     tra = get_time_series(subdf, dynamic_start=True, start_date=None, end_date=tr_end)
     tes = get_time_series(subdf, dynamic_start=False, start_date=te_start, end_date=te_end)
-
-    if len(tra[0]) > 24: # more than 6 months
-        forecaster = Croston()
-        forecaster.fit(tra[0])
-        pred = forecaster.predict(fh=range(1, 12))
-
-        # evaluate
-        test_and_pred = [vpn, sum(tes[0]), sum(pred)]
-        gt_and_pred.append(test_and_pred)
-
-agg_testing_error = pd.DataFrame(gt_and_pred, columns=["vpn", "gt", "model_pred"])
-agg_testing_error["model_mape (%)"] = abs(agg_testing_error["model_pred"] / (agg_testing_error["gt"]) - 1) * 100
+    gt.append([vpn, sum(tes[0])])
 
 # get sales vel
 sales_velocities = {}
@@ -75,13 +58,15 @@ sales_velocities.columns = ["vpn", "weekly_sales"]
 sales_velocities["sales_vel_pred"] = sales_velocities["weekly_sales"] * len(
     pd.date_range(te_start, te_end, freq="W-MON"))
 
-# join table
-result = sales_velocities[["vpn", "sales_vel_pred"]].merge(agg_testing_error, how="left", on="vpn")
-result["vel_mape (%)"] = abs(result["sales_vel_pred"] / result["gt"] - 1) * 100
-result = result[["vpn", "gt", "sales_vel_pred", "vel_mape (%)", "model_pred", "model_mape (%)"]]
-# save
-result.to_csv(os.path.join(result_path, "model_report.csv"), index=False)
+# COMMAND ----------
+
+gt = pd.DataFrame(gt, columns=["vpn", "gt"])
 
 # COMMAND ----------
 
-
+# join table
+result = gt.merge(sales_velocities[["vpn", "sales_vel_pred"]], how="left", on="vpn")
+result["vel_mape (%)"] = abs(result["sales_vel_pred"] / result["gt"] - 1) * 100
+result = result[["vpn", "gt", "sales_vel_pred", "vel_mape (%)"]]
+# save
+result.to_csv(os.path.join(result_path, "model_report.csv"), index=False)

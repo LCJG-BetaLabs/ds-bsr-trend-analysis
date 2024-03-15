@@ -2,6 +2,7 @@
 import base64
 import os
 import warnings
+import datetime
 
 import numpy as np
 import pandas as pd
@@ -18,7 +19,7 @@ warnings.simplefilter("ignore")
 logger = get_logger()
 
 path = f"/dbfs/mnt/dev/bsr_trend/"
-result_path = os.path.join(path, "arima_result")
+result_path = os.path.join(path, f"""arima_result_{str(datetime.datetime.today().date()).replace("-", "")}""")
 os.makedirs(result_path, exist_ok=True)
 
 # COMMAND ----------
@@ -40,6 +41,8 @@ real_pred_start = "2023-12-01"
 
 distinct_vpns = np.unique(sales["vpn"])
 
+gt_and_pred = []
+
 for vpn in tqdm(distinct_vpns):
     subdf = sales[sales["vpn"] == vpn]
     tra = get_time_series(subdf, dynamic_start=True, start_date=None, end_date=tr_end)
@@ -49,8 +52,6 @@ for vpn in tqdm(distinct_vpns):
         encoded_vpn = base64.b64encode(vpn.encode("utf-8")).decode()
         folder = os.path.join(result_path, encoded_vpn)
         os.makedirs(folder, exist_ok=True)
-
-        gt_and_pred = []
 
         # for vpn, _tra, _tes in zip(vpns, tra, tes):
         model = auto_arima(tra[0], seasonal=False, trace=True)
@@ -101,3 +102,7 @@ result["vel_mape (%)"] = abs(result["sales_vel_pred"] / result["gt"] - 1) * 100
 result = result[["vpn", "gt", "sales_vel_pred", "vel_mape (%)", "model_pred", "model_mape (%)"]]
 
 result.to_csv(os.path.join(result_path, "model_report.csv"), index=False)
+
+# COMMAND ----------
+
+
