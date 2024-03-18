@@ -221,5 +221,3 @@ for vpn in random_vpns:
     vel_pred = get_sales_velocities(vpn)
     print(vel_pred)
     print(get_mape(vpn))
-
-# COMMAND ----------
