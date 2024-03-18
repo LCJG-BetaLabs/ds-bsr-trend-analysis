@@ -351,6 +351,17 @@ dbutils.widgets.text("cutoff_date", datetime.datetime.today().date().strftime("%
 
 # COMMAND ----------
 
+# MAGIC %sql
+# MAGIC CREATE OR REPLACE TEMPORARY VIEW BSRVPNStyleMapping AS
+# MAGIC SELECT
+# MAGIC   DISTINCT mp.vpn,
+# MAGIC   s.style
+# MAGIC FROM BSRStyleWeeklySales s
+# MAGIC LEFT JOIN ItemVPNMapping mp ON (s.style = mp.item)
+# MAGIC WHERE mp.vpn IS NOT NULL;
+
+# COMMAND ----------
+
 sales = spark.table("BSRVPNWeeklySales").toPandas()
 stock_level = spark.table("BSRVPNStockLevel").toPandas()
 po_qty = spark.table("BSRVPNPO").toPandas()
