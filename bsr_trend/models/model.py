@@ -15,8 +15,7 @@ class TimeSeriesModel:
         self.fh = fh
         self.mode = mode
 
-        self.model = self.init_model()
-        self.dirs = self.init_directory()
+        self.dir = self.init_directory()
 
     def init_model(self):
         raise NotImplementedError
@@ -24,38 +23,38 @@ class TimeSeriesModel:
     def init_directory(self):
         raise NotImplementedError
 
-    def train(self, train_data: list) -> None:
+    def train(self, train_data: list, vpns: np.ndarray) -> None:
         """save trained model"""
         raise NotImplementedError
 
-    def predict(self, fh) -> pd.DataFrame:
+    def predict(self, fh: int, vpns: np.ndarray) -> None:
         """save dataframe containing vpn, order_week, predicted qty"""
         raise NotImplementedError
 
-    def evaluate(self, test_data: list, vpn: np.ndarray):
+    def evaluate(self, test_data: list, vpns: np.ndarray):
         """save dataframe containing vpn, ground_truth, aggregated predicted qty, MAPE (%)"""
-        ground_truth = [(vpn, sum(tes[0])) for tes in test_data]
+        ground_truth = [(vpn, sum(tes[0])) for tes, vpn in zip(test_data, vpns)]
         ground_truth = pd.DataFrame(ground_truth, columns=["vpn", "ground_truth"])
-        test_predictions = pd.read_csv(os.path.join(self.dirs, "predictions.csv"))
+        test_predictions = pd.read_csv(os.path.join(self.dir, "predictions.csv"))
         test_predictions = test_predictions[["vpn", "predicted_qty"]].groupby("vpn").sum().reset_index()
         result = pd.merge(ground_truth, test_predictions, how="left", on="vpn")
         result["MAPE (%)"] = abs(result["predicted_qty"] / (result["ground_truth"]) - 1) * 100
-        result.to_csv(os.path.join(self.dirs, "model_report.csv"))
-        logger.info("Model report saved to {}".format(os.path.join(self.dirs, "model_report")))
+        result.to_csv(os.path.join(self.dir, "model_report.csv"), index=False)
+        logger.info("Model report saved to {}".format(os.path.join(self.dir, "model_report")))
 
-    def train_predict(self):
+    def train_predict_evaluate(self):
         # split data
         if self.mode == "train":
             tra_vpns, tra = get_time_series(self.data, dynamic_start=True, end_date=self.tr_end)
             tes_vpns, tes = get_time_series(self.data, dynamic_start=False, start_date=self.te_start, end_date=self.te_end)
-            fh = np.unique(tes["order_week"])
-            self.train(tra)
-            self.predict(fh)
+            fh = len(np.unique(tes["order_week"]))
+            self.train(tra, tra_vpns)
+            self.predict(fh, tes_vpns)
             self.evaluate(tes, tes_vpns)
         if self.mode == "predict":
             # predict the real future
             if self.fh is None:
                 raise ValueError("Forecast horizon must be specified for mode='predict'")
-            tra = get_time_series(self.data, dynamic_start=True, end_date=self.te_end)
-            self.train(tra)
-            self.predict(self.fh)
+            tra_vpns, tra = get_time_series(self.data, dynamic_start=True, end_date=self.te_end)
+            self.train(tra, tra_vpns)
+            self.predict(self.fh, tra_vpns)
