@@ -12,6 +12,11 @@ WEEK_COVERAGE = f"lc_{ENVIRONMENT}.ml_trend_analysis_silver.week_coverage"
 VPN_STYLE_MAP = f"lc_{ENVIRONMENT}.ml_trend_analysis_silver.vpn_style_map"
 VPN_INFO = f"lc_{ENVIRONMENT}.ml_trend_analysis_silver.vpn_info"
 
+BASR_DIR = "/Volumes/lc_prd/ml_trend_analysis_silver/models"
+CUTOFF_DATE = os.environ.get("CUTOFF_DATE", "2099-12-31")
+TRAINING_DIR = os.path.join(BASR_DIR, "training", CUTOFF_DATE.replace("-", ""))
+PREDICTION_DIR = os.path.join(BASR_DIR, "prediction", CUTOFF_DATE.replace("-", ""))
+
 
 def uc_table_exists(full_table_name) -> bool:
     return spark.catalog.tableExists(full_table_name)
