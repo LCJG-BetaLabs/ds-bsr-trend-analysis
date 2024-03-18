@@ -17,7 +17,8 @@ class TimeSeriesModel:
 
         self.dir = self.init_directory()
 
-    def init_model(self):
+    @staticmethod
+    def init_model():
         raise NotImplementedError
 
     def init_directory(self):
