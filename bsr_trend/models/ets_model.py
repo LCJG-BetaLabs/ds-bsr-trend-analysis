@@ -5,11 +5,11 @@ import pandas as pd
 from sktime.forecasting.ets import AutoETS
 from sktime.utils import mlflow_sktime
 
-from bsr_trend.models import model
+from bsr_trend.models.model import TimeSeriesModel
 from bsr_trend.utils.catalog import TRAINING_DIR, PREDICTION_DIR
 
 
-class ETSModel(model):
+class ETSModel(TimeSeriesModel):
     @staticmethod
     def init_model():
         ets_model = AutoETS(auto=True, n_jobs=-1)
