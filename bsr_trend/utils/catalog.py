@@ -13,7 +13,9 @@ VPN_STYLE_MAP = f"lc_{ENVIRONMENT}.ml_trend_analysis_silver.vpn_style_map"
 VPN_INFO = f"lc_{ENVIRONMENT}.ml_trend_analysis_silver.vpn_info"
 
 BASR_DIR = "/Volumes/lc_prd/ml_trend_analysis_silver/models"
-CUTOFF_DATE = os.environ.get("CUTOFF_DATE", "2099-12-31")
+
+with open(os.path.join(BASR_DIR, "latest_cutoff_date.txt"), "r") as f:
+    CUTOFF_DATE = f.read()
 TRAINING_DIR = os.path.join(BASR_DIR, "training", CUTOFF_DATE.replace("-", ""))
 PREDICTION_DIR = os.path.join(BASR_DIR, "prediction", CUTOFF_DATE.replace("-", ""))
 BEST_MODEL_REPORT_PATH = os.path.join(TRAINING_DIR, "best_model_report.csv")

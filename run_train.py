@@ -30,18 +30,6 @@ dbutils.widgets.text("cutoff_date", datetime.datetime.today().date().strftime("%
 # COMMAND ----------
 
 cutoff_date = getArgument("cutoff_date")
-os.environ["CUTOFF_DATE"] = cutoff_date
-
-# COMMAND ----------
-
-# datamart
-dbutils.notebook.run(
-    "./bsr_trend/datamart", 
-    0, 
-    {
-        "cutoff_date": cutoff_date,
-    }
-)
 
 # COMMAND ----------
 
