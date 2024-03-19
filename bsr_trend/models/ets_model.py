@@ -7,7 +7,7 @@ from sktime.forecasting.ets import AutoETS
 from sktime.utils import mlflow_sktime
 
 from bsr_trend.models.model import TimeSeriesModel
-from bsr_trend.utils.catalog import TRAINING_DIR, PREDICTION_DIR, IS_DATABRICKS
+from bsr_trend.utils.catalog import IS_DATABRICKS
 
 
 class ETSModel(TimeSeriesModel):
