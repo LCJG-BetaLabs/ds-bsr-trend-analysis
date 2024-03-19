@@ -48,7 +48,7 @@ class TimeSeriesModel:
         if self.mode == "train":
             tra_vpns, tra = get_time_series(self.data, dynamic_start=True, end_date=self.tr_end)
             tes_vpns, tes = get_time_series(self.data, dynamic_start=False, start_date=self.te_start, end_date=self.te_end)
-            fh = len(np.unique(tes["order_week"]))
+            fh = len(np.unique(tes[0].index))
             self.train(tra, tra_vpns)
             self.predict(fh, tes_vpns)
             self.evaluate(tes, tes_vpns)

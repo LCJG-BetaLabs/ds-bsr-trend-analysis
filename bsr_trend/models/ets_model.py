@@ -1,4 +1,5 @@
 import os
+import shutil
 import base64
 import numpy as np
 import pandas as pd
@@ -6,7 +7,7 @@ from sktime.forecasting.ets import AutoETS
 from sktime.utils import mlflow_sktime
 
 from bsr_trend.models.model import TimeSeriesModel
-from bsr_trend.utils.catalog import TRAINING_DIR, PREDICTION_DIR
+from bsr_trend.utils.catalog import TRAINING_DIR, PREDICTION_DIR, IS_DATABRICKS
 
 
 class ETSModel(TimeSeriesModel):
@@ -35,10 +36,21 @@ class ETSModel(TimeSeriesModel):
             folder = os.path.join(self.dir, encoded_vpn)
             os.makedirs(folder, exist_ok=True)
             # save model
-            mlflow_sktime.save_model(
-                sktime_model=forecaster,
-                path=os.path.join(folder, "model")
-            )
+            if IS_DATABRICKS:
+                # OSError: [Errno 95] Operation not supported for writing zip file directly to volume
+                tmp_path = "/tmp/bsr_trend/model"
+                os.makedirs(tmp_path, exist_ok=True)
+                mlflow_sktime.save_model(
+                    sktime_model=forecaster,
+                    path=tmp_path
+                )
+                shutil.move(tmp_path, os.path.join(folder, "model"))
+                os.remove(tmp_path)
+            else:
+                mlflow_sktime.save_model(
+                    sktime_model=forecaster,
+                    path=os.path.join(folder, "model")
+                )
 
     def predict(self, fh: int, vpns: np.ndarray) -> None:
         """save dataframe containing vpn, order_week, predicted qty"""
