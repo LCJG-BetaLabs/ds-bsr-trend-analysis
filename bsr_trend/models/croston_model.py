@@ -16,16 +16,6 @@ class CrostonModel(TimeSeriesModel):
         croston_model = Croston()
         return croston_model
 
-    def init_directory(self):
-        if self.mode == "train":
-            directory = os.path.join(TRAINING_DIR, "croston_models")
-        elif self.mode == "predict":
-            directory = os.path.join(PREDICTION_DIR, "croston_models")
-        else:
-            raise ValueError(f"Unknown mode: {self.mode}")
-        os.makedirs(directory, exist_ok=True)
-        return directory
-
     def train(self, train_data: list, vpns: np.ndarray) -> None:
         """save trained model"""
         for tra, vpn in zip(train_data, vpns):

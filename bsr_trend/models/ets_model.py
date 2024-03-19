@@ -16,16 +16,6 @@ class ETSModel(TimeSeriesModel):
         ets_model = AutoETS(auto=True, n_jobs=-1)
         return ets_model
 
-    def init_directory(self):
-        if self.mode == "train":
-            directory = os.path.join(TRAINING_DIR, "ets_models")
-        elif self.mode == "predict":
-            directory = os.path.join(PREDICTION_DIR, "ets_models")
-        else:
-            raise ValueError(f"Unknown mode: {self.mode}")
-        os.makedirs(directory, exist_ok=True)
-        return directory
-
     def train(self, train_data: list, vpns: np.ndarray) -> None:
         """save trained model"""
         for tra, vpn in zip(train_data, vpns):
@@ -47,7 +37,7 @@ class ETSModel(TimeSeriesModel):
                     path=tmp_path
                 )
                 if os.path.exists(os.path.join(folder, "model")):
-                    shutil.rmtree(os.path.join(folder, "model")) 
+                    shutil.rmtree(os.path.join(folder, "model"))
                 shutil.move(tmp_path, folder)
             else:
                 mlflow_sktime.save_model(

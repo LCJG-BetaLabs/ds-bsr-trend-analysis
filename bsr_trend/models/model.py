@@ -2,26 +2,25 @@ import os
 import numpy as np
 import pandas as pd
 from bsr_trend.utils.data import get_time_series
+from bsr_trend.utils.catalog import init_directory
 from bsr_trend.logger import get_logger
 
 logger = get_logger()
 
 
 class TimeSeriesModel:
-    def __init__(self, data, tr_start, tr_end, te_start, te_end, fh=None, mode="train"):
+    def __init__(self, data, tr_start, tr_end, te_start, te_end, fh=None, mode="train", model_name="sales_vel"):
         self.data = data
         self.tr_start, self.tr_end = tr_start, tr_end
         self.te_start, self.te_end = te_start, te_end
         self.fh = fh
         self.mode = mode
 
-        self.dir = self.init_directory()
+        self.model_name = model_name
+        self.dir = init_directory(mode, model_name)
 
     @staticmethod
     def init_model():
-        raise NotImplementedError
-
-    def init_directory(self):
         raise NotImplementedError
 
     def train(self, train_data: list, vpns: np.ndarray) -> None:

@@ -16,6 +16,7 @@ BASR_DIR = "/Volumes/lc_prd/ml_trend_analysis_silver/models"
 CUTOFF_DATE = os.environ.get("CUTOFF_DATE", "2099-12-31")
 TRAINING_DIR = os.path.join(BASR_DIR, "training", CUTOFF_DATE.replace("-", ""))
 PREDICTION_DIR = os.path.join(BASR_DIR, "prediction", CUTOFF_DATE.replace("-", ""))
+BEST_MODEL_REPORT_PATH = os.path.join(TRAINING_DIR, "best_model_report.csv")
 
 
 def uc_table_exists(full_table_name) -> bool:
@@ -88,3 +89,14 @@ def _write_uc_table(
             spark.sql(
                 f"""ALTER TABLE {full_table_name} ADD CONSTRAINT {full_table_name.split(".")[-1]}_pk PRIMARY KEY ({",".join(primary_keys)})"""
             )
+
+
+def init_directory(mode="train", model_name="sales_vel"):
+    if mode == "train":
+        directory = os.path.join(TRAINING_DIR, model_name)
+    elif mode == "predict":
+        directory = os.path.join(PREDICTION_DIR, model_name)
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
+    os.makedirs(directory, exist_ok=True)
+    return directory
