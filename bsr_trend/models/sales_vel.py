@@ -34,7 +34,7 @@ if mode == "train":
     gt = []
     for vpn in tqdm(vpns):
         subdf = sales[sales["vpn"] == vpn]
-        tes = get_time_series(subdf, dynamic_start=False, start_date=te_start, end_date=te_end)
+        _, tes = get_time_series(subdf, dynamic_start=False, start_date=te_start, end_date=te_end)
         gt.append([vpn, sum(tes[0])])
 
     gt = pd.DataFrame(gt, columns=["vpn", "gt"])
