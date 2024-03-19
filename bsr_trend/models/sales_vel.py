@@ -76,4 +76,4 @@ if mode == "train":
     result.to_csv(os.path.join(result_path, "model_report.csv"), index=False)
 elif mode == "predict":
     result = sales_velocities[["vpn", "sales_vel_pred"]]
-    result.to_csv(os.path.join(result_path, "model_report.csv"), index=False)
+    result.to_csv(os.path.join(result_path, "predictions.csv"), index=False)

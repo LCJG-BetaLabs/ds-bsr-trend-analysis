@@ -62,8 +62,8 @@ for vpn in np.unique(sales["vpn"]):
 
 # split by best model report
 best_model = pd.read_csv(BEST_MODEL_REPORT_PATH)
-ets_vpns = best_model[best_model["best_model"] == "ets"]
-croston_vpns = best_model[best_model["best_model"] == "croston"]
+ets_vpns = best_model[best_model["best_model"] == "ets"]["vpn"].values
+croston_vpns = best_model[best_model["best_model"] == "croston"]["vpn"].values
 
 # COMMAND ----------
 
@@ -122,7 +122,7 @@ ets_pred = pd.read_csv(os.path.join(PREDICTION_DIR, "ets_models", "predictions.c
 croston_pred = pd.read_csv(os.path.join(PREDICTION_DIR, "croston_models", "predictions.csv"))
 
 result = pd.concat([croston_pred, ets_pred])
-vel_pred = vel_pred[~vel_pred["vpn"].isin(np.unique(result["vpn"]))]
+vel_pred = vel_pred[~vel_pred["vpn"].isin(np.unique(result["vpn"]))].rename(columns={"sales_vel_pred": "predicted_qty"})
 result = pd.concat([result, vel_pred])
 
 result["predicted_qty"] = result["predicted_qty"].round(0)
