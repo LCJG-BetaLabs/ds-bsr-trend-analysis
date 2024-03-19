@@ -41,7 +41,7 @@ class TimeSeriesModel:
         result = pd.merge(ground_truth, test_predictions, how="left", on="vpn")
         result["MAPE (%)"] = abs(result["predicted_qty"] / (result["ground_truth"]) - 1) * 100
         result.to_csv(os.path.join(self.dir, "model_report.csv"), index=False)
-        logger.info("Model report saved to {}".format(os.path.join(self.dir, "model_report")))
+        logger.info("Model report saved to {}".format(os.path.join(self.dir, "model_report.csv")))
 
     def train_predict_evaluate(self):
         # split data
