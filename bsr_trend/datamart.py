@@ -19,6 +19,7 @@
 
 # COMMAND ----------
 
+import os
 import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
