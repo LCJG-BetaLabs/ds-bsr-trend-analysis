@@ -38,18 +38,21 @@ class ETSModel(TimeSeriesModel):
             # save model
             if IS_DATABRICKS:
                 # OSError: [Errno 95] Operation not supported for writing zip file directly to volume
+                # saving to tmp then move to volume
                 tmp_path = "/tmp/bsr_trend/model"
-                os.makedirs(tmp_path, exist_ok=True)
+                if os.path.exists(tmp_path):
+                    shutil.rmtree(tmp_path)
                 mlflow_sktime.save_model(
                     sktime_model=forecaster,
                     path=tmp_path
                 )
-                shutil.move(tmp_path, os.path.join(folder, "model"))
-                os.remove(tmp_path)
+                if os.path.exists(os.path.join(folder, "model")):
+                    shutil.rmtree(os.path.join(folder, "model")) 
+                shutil.move(tmp_path, folder)
             else:
                 mlflow_sktime.save_model(
                     sktime_model=forecaster,
-                    path=os.path.join(folder, "model")
+                    path=folder,
                 )
 
     def predict(self, fh: int, vpns: np.ndarray) -> None:

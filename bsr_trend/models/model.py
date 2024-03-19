@@ -34,7 +34,7 @@ class TimeSeriesModel:
 
     def evaluate(self, test_data: list, vpns: np.ndarray):
         """save dataframe containing vpn, ground_truth, aggregated predicted qty, MAPE (%)"""
-        ground_truth = [(vpn, sum(tes[0])) for tes, vpn in zip(test_data, vpns)]
+        ground_truth = [(vpn, sum(tes)) for tes, vpn in zip(test_data, vpns)]
         ground_truth = pd.DataFrame(ground_truth, columns=["vpn", "ground_truth"])
         test_predictions = pd.read_csv(os.path.join(self.dir, "predictions.csv"))
         test_predictions = test_predictions[["vpn", "predicted_qty"]].groupby("vpn").sum().reset_index()
