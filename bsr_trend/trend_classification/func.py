@@ -44,10 +44,10 @@ def classify_trend(time_series):
 def classify_by_history(time_series):
     result = []
     for ts in time_series:
-        if len(ts) >= 52:
-            result.append("history>=12months")
-        elif len(ts) >= 12 and len(ts) < 52:
-            result.append("3months<=history<12months")
+        if len(ts) >= 24:
+            result.append("history>=6months")
+        elif len(ts) >= 12 and len(ts) < 24:
+            result.append("3months<=history<6months")
         else:
             result.append("history<3months")
     return result

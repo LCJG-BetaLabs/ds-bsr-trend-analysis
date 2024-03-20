@@ -7,6 +7,7 @@ IS_DATABRICKS = "DATABRICKS_RUNTIME_VERSION" in os.environ
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "prd")
 
 TREND_CLASSIFICATION_RESULT = f"lc_{ENVIRONMENT}.ml_trend_analysis_silver.trend_classification"
+HISTORY_FLAG_RESULT = f"lc_{ENVIRONMENT}.ml_trend_analysis_silver.history_flag"
 SALES = f"lc_{ENVIRONMENT}.ml_trend_analysis_silver.sales"
 WEEK_COVERAGE = f"lc_{ENVIRONMENT}.ml_trend_analysis_silver.week_coverage"
 VPN_STYLE_MAP = f"lc_{ENVIRONMENT}.ml_trend_analysis_silver.vpn_style_map"

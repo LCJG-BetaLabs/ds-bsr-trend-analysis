@@ -1,8 +1,4 @@
 # Databricks notebook source
-pip install sktime
-
-# COMMAND ----------
-
 import os
 import warnings
 import pandas as pd
@@ -14,6 +10,7 @@ from bsr_trend.models.ets_model import ETSModel
 from bsr_trend.models.croston_model import CrostonModel
 from bsr_trend.utils.data import get_sales_table
 from bsr_trend.logger import get_logger
+from bsr_trend.utils.catalog import CUTOFF_DATE
 
 # Suppress UserWarning from statsmodels
 warnings.simplefilter("ignore")
@@ -25,7 +22,7 @@ logger = get_logger()
 dbutils.widgets.removeAll()
 # format: yyyy-MM-dd
 # default: today
-dbutils.widgets.text("cutoff_date", datetime.datetime.today().date().strftime("%Y-%m-%d")) 
+dbutils.widgets.text("cutoff_date", CUTOFF_DATE) 
 
 # COMMAND ----------
 

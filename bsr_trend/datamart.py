@@ -364,6 +364,24 @@ dbutils.widgets.text("cutoff_date", CUTOFF_DATE)
 
 # COMMAND ----------
 
+# get brand list for BU every 6 months
+if datetime.datetime.strptime(CUTOFF_DATE, "%Y-%m-%d").month in [6, 12]:
+    item_list = spark.sql(
+        """
+        CREATE OR REPLACE TEMPORARY VIEW ItemListForReview AS
+        SELECT 
+        brand_name,
+        category,
+        COUNT(DISTINCT b.vpn) AS number_of_vpn
+        FROM BSRVPNWeeklySales b 
+        INNER JOIN VPNInfoDetail USING (vpn)
+        GROUP BY brand_name, category
+        """
+    )
+    item_list.toPandas().to_csv(f"/dbfs/mnt/prd/bsr_trend/item_list_by_brand_class_{CUTOFF_DATE}.csv", index=False)
+
+# COMMAND ----------
+
 sales = spark.table("BSRVPNWeeklySales").toPandas()
 stock_level = spark.table("BSRVPNStockLevel").toPandas()
 po_qty = spark.table("BSRVPNPO").toPandas()
