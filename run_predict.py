@@ -1,8 +1,4 @@
 # Databricks notebook source
-pip install sktime
-
-# COMMAND ----------
-
 import os
 import warnings
 import pandas as pd
@@ -13,7 +9,7 @@ from dateutil.relativedelta import relativedelta
 from bsr_trend.models.ets_model import ETSModel
 from bsr_trend.models.croston_model import CrostonModel
 from bsr_trend.utils.data import get_sales_table
-from bsr_trend.utils.catalog import BEST_MODEL_REPORT_PATH, PREDICTION_DIR, ENVIRONMENT
+from bsr_trend.utils.catalog import BEST_MODEL_REPORT_PATH, PREDICTION_DIR, ENVIRONMENT, CUTOFF_DATE
 from bsr_trend.logger import get_logger
 
 # Suppress UserWarning from statsmodels
@@ -26,7 +22,7 @@ logger = get_logger()
 dbutils.widgets.removeAll()
 # format: yyyy-MM-dd
 # default: today
-dbutils.widgets.text("cutoff_date", datetime.datetime.today().date().strftime("%Y-%m-%d")) 
+dbutils.widgets.text("cutoff_date", CUTOFF_DATE) 
 cutoff_date = getArgument("cutoff_date")
 os.environ["CUTOFF_DATE"] = cutoff_date
 
@@ -41,10 +37,6 @@ te_start, te_end = tr_end, cutoff_date
 pred_start, pred_end = te_start, (datetime.datetime.strptime(cutoff_date, "%Y-%m-%d").date() + relativedelta(months=3)).strftime("%Y-%m-%d")
 
 logger.info(f"""num of vpn: {len(sales["vpn"].unique())}""")
-
-# COMMAND ----------
-
-pred_start, pred_end
 
 # COMMAND ----------
 
