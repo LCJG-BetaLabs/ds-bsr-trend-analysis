@@ -19,6 +19,7 @@
 
 # COMMAND ----------
 
+import os
 import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -29,6 +30,7 @@ from bsr_trend.utils.catalog import (
     WEEK_COVERAGE,
     VPN_STYLE_MAP,
     VPN_INFO,
+    CUTOFF_DATE,
 )
 
 # COMMAND ----------
@@ -36,7 +38,7 @@ from bsr_trend.utils.catalog import (
 dbutils.widgets.removeAll()
 # format: yyyy-MM-dd
 # default: today
-dbutils.widgets.text("cutoff_date", datetime.datetime.today().date().strftime("%Y-%m-%d")) 
+dbutils.widgets.text("cutoff_date", CUTOFF_DATE) 
 
 # COMMAND ----------
 

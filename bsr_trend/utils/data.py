@@ -71,4 +71,4 @@ def get_time_series(sales, dynamic_start=True, start_date=None, end_date=None):
             tra = buf["qty"][start:end_date].dropna()
             tra.sort_index(inplace=True)
             time_series.append(tra)
-    return time_series
+    return vpns, time_series
